@@ -33,7 +33,12 @@ export const ScanForm = ({
       
       <Alert className="mt-4 bg-amber-50 border-amber-200">
         <AlertDescription>
-          Scans are now performed through a secure backend service. The scanner tests security headers and HTTP methods on the specified website.
+          <p>Security scanner functionality:</p>
+          <ul className="list-disc pl-5 mt-2 space-y-1">
+            <li>Tests for security headers like Content-Security-Policy, X-XSS-Protection, etc.</li>
+            <li>Checks if potentially unsafe HTTP methods (TRACE, OPTIONS, HEAD, DEBUG) are enabled</li>
+            <li>All requests are made securely through a backend Edge Function</li>
+          </ul>
         </AlertDescription>
       </Alert>
     </form>

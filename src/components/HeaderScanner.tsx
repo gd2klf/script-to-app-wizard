@@ -28,6 +28,14 @@ const HeaderScanner = () => {
         loading={loading}
       />
 
+      {logs.length > 0 && (
+        <div className="mt-4 mb-2">
+          <p className="text-sm text-slate-500">
+            Below is the scan log showing all requests, responses, and any errors that occurred during the scan process.
+          </p>
+        </div>
+      )}
+      
       <ScanProgress logs={logs} />
       
       <ScanError errorDetails={errorDetails || ''} />

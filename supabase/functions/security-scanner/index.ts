@@ -27,51 +27,79 @@ serve(async (req) => {
       processedUrl = `https://${processedUrl}`;
     }
     
-    // Make the actual request to the target URL
-    const response = await fetch(processedUrl, { 
-      method: method || 'GET',
-      headers: {
-        'User-Agent': 'Security-Scanner/1.0'
-      },
-      redirect: 'manual' // Don't follow redirects automatically
-    }).catch(error => {
-      console.error('Fetch error:', error);
-      return null;
-    });
+    // Set a reasonable timeout to avoid hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
-    if (!response) {
+    try {
+      // Make the actual request to the target URL
+      const response = await fetch(processedUrl, { 
+        method: method || 'GET',
+        headers: {
+          'User-Agent': 'Security-Scanner/1.0'
+        },
+        redirect: 'manual', // Don't follow redirects automatically
+        signal: controller.signal
+      });
+      
+      // Clear the timeout since we got a response
+      clearTimeout(timeoutId);
+      
+      // Extract headers
+      const headers = {};
+      response.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+      
+      // Return the response details
+      return new Response(
+        JSON.stringify({
+          status: response.status,
+          statusText: response.statusText,
+          headers: headers,
+          url: response.url,
+          redirected: response.redirected,
+          ok: response.ok,
+          method: method || 'GET' // Return the method that was used
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    } catch (fetchError) {
+      // Clear the timeout
+      clearTimeout(timeoutId);
+      
+      console.error(`Fetch error with method ${method || 'GET'}:`, fetchError);
+      
+      // If we have an abort error (timeout), provide a specific message
+      if (fetchError.name === 'AbortError') {
+        return new Response(
+          JSON.stringify({ 
+            error: true, 
+            message: 'Request timed out',
+            method: method || 'GET'
+          }),
+          { 
+            status: 408,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
+      // For other fetch errors, return a proper error response
       return new Response(
         JSON.stringify({ 
           error: true, 
-          message: 'Failed to connect to the target server' 
+          message: fetchError.message || 'Failed to connect to the target server',
+          method: method || 'GET'
         }),
         { 
-          status: 500,
+          status: 502,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
-    
-    // Extract headers
-    const headers = {};
-    response.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
-    
-    // Return the response details
-    return new Response(
-      JSON.stringify({
-        status: response.status,
-        statusText: response.statusText,
-        headers: headers,
-        url: response.url,
-        redirected: response.redirected,
-        ok: response.ok
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
   } catch (error) {
     console.error('Error processing request:', error);
     

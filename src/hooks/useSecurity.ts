@@ -14,19 +14,48 @@ interface LogEntry {
   message: string;
 }
 
-const checkMethod = async (url: string, method: string): Promise<boolean> => {
+const checkMethod = async (url: string, method: string): Promise<{ allowed: boolean; error?: string }> => {
   try {
+    addLog('request', `Testing ${method} method...`);
+    
     const { data, error } = await supabase.functions.invoke('security-scanner', {
       body: { url, method }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error(`Error checking method ${method}:`, error);
+      return { allowed: false, error: error.message };
+    }
+    
+    // If data contains an error property, something went wrong
+    if (data.error) {
+      console.error(`Error checking method ${method}:`, data.message);
+      return { allowed: false, error: data.message };
+    }
     
     // If response status is not 405 Method Not Allowed, the method is considered allowed
-    return data.status !== 405;
+    // 200, 204, 301, 302, etc. are signs that the method might be allowed
+    return { allowed: data.status !== 405 };
   } catch (error: any) {
     console.error(`Error checking method ${method}:`, error);
-    return false;
+    return { allowed: false, error: error.message };
+  }
+};
+
+// Create a module-level variable to store logs so they're accessible to the checkMethod function
+let globalLogs: LogEntry[] = [];
+let setGlobalLogs: React.Dispatch<React.SetStateAction<LogEntry[]>> | null = null;
+
+const addLog = (type: 'request' | 'response' | 'error', message: string) => {
+  const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+  const newLog = { timestamp, type, message };
+  
+  // Update the global logs array
+  globalLogs = [...globalLogs, newLog];
+  
+  // If setGlobalLogs is set, update the state as well
+  if (setGlobalLogs) {
+    setGlobalLogs(prev => [...prev, newLog]);
   }
 };
 
@@ -37,10 +66,8 @@ export const useSecurity = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { toast } = useToast();
 
-  const addLog = (type: 'request' | 'response' | 'error', message: string) => {
-    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-    setLogs(prev => [...prev, { timestamp, type, message }]);
-  };
+  // Set the global setter
+  setGlobalLogs = setLogs;
 
   const logHeaders = (headers: Record<string, any>, prefix: string) => {
     Object.entries(headers).forEach(([key, value]) => {
@@ -57,7 +84,10 @@ export const useSecurity = () => {
     setLoading(true);
     setResults(null);
     setErrorDetails(null);
-    setLogs([]); // Clear previous logs
+    
+    // Reset logs and global logs
+    globalLogs = [];
+    setLogs([]);
     
     try {
       addLog('request', `Initiating scan for: ${processedUrl}`);
@@ -77,6 +107,11 @@ export const useSecurity = () => {
       
       if (error) throw error;
       
+      // Check if headersResponse contains an error from the edge function
+      if (headersResponse.error) {
+        throw new Error(headersResponse.message || 'Error occurred in edge function');
+      }
+      
       // Log the complete response information
       addLog('response', '=== RESPONSE ===');
       addLog('response', `Status: ${headersResponse.status} ${headersResponse.statusText}`);
@@ -94,14 +129,28 @@ export const useSecurity = () => {
       addLog('request', '\n=== TESTING HTTP METHODS ===');
       
       const methodResults: Record<string, boolean> = {};
+      const methodErrors: Record<string, string> = {};
 
-      await Promise.all(
+      const methodChecks = await Promise.all(
         methodsToCheck.map(async (method) => {
-          addLog('request', `Testing ${method} method...`);
-          methodResults[method] = await checkMethod(processedUrl, method);
-          addLog('response', `${method} method: ${methodResults[method] ? 'ALLOWED (potentially unsafe)' : 'NOT ALLOWED (secure)'}`);
+          const result = await checkMethod(processedUrl, method);
+          methodResults[method] = result.allowed;
+          if (result.error) {
+            methodErrors[method] = result.error;
+            addLog('error', `Error checking ${method} method: ${result.error}`);
+          } else {
+            addLog('response', `${method} method: ${result.allowed ? 'ALLOWED (potentially unsafe)' : 'NOT ALLOWED (secure)'}`);
+          }
+          return { method, ...result };
         })
       );
+
+      // Log any method testing errors, but continue with the results we have
+      methodChecks.forEach(check => {
+        if (check.error) {
+          console.warn(`Warning for ${check.method} method: ${check.error}`);
+        }
+      });
 
       const response: SecurityResult = {
         headers: headersPlain,
@@ -126,6 +175,7 @@ export const useSecurity = () => {
       }
       
       setErrorDetails(errorDetail);
+      addLog('error', `Scan failed: ${errorDetail}`);
       
       toast({
         title: "Scan Failed",
