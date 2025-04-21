@@ -7,12 +7,19 @@ import { useToast } from "@/hooks/use-toast";
 import { SecurityAssessment } from "./SecurityAssessment";
 import axios from 'axios';
 
-const isTraceEnabled = (response: any): boolean => {
-  return response.status === 200;
-};
-
-const isDebugEnabled = (response: any): boolean => {
-  return response.status === 200;
+const checkMethod = async (url: string, method: string): Promise<boolean> => {
+  try {
+    await axios({ 
+      url, 
+      method: method as any,
+      timeout: 5000
+    });
+    return true;
+  } catch (error: any) {
+    // If we get a 405 Method Not Allowed, the method is disabled
+    // Any other error (like CORS) we assume the method is enabled
+    return error.response?.status !== 405;
+  }
 };
 
 const HeaderScanner = () => {
@@ -42,35 +49,38 @@ const HeaderScanner = () => {
     setResults(null);
     
     try {
-      // In a real application, this would call a backend API
-      // For demo purposes, we'll just simulate some results
+      // First get the headers
+      const headersResponse = await axios.get(processedUrl);
+      const headers = headersResponse.headers;
+
+      // Check different HTTP methods
+      const methodsToCheck = ['TRACE', 'OPTIONS', 'HEAD', 'DEBUG'];
+      const methodResults: Record<string, boolean> = {};
+
+      await Promise.all(
+        methodsToCheck.map(async (method) => {
+          methodResults[method] = await checkMethod(processedUrl, method);
+        })
+      );
+
       const response = {
-        headers: {
-          'Content-Security-Policy': 'default-src \'self\'',
-          'X-XSS-Protection': '1; mode=block',
-          'X-Content-Type-Options': 'nosniff',
-          'Referrer-Policy': 'strict-origin-when-cross-origin'
-        },
-        methods: {
-          TRACE: false,
-          OPTIONS: true,
-          HEAD: true,
-          DEBUG: true // Simulated DEBUG method response
-        }
+        headers,
+        methods: methodResults
       };
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
       setResults(response);
       toast({
         title: "Scan Complete",
         description: "Security scan has been completed successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.response?.status === 403 
+        ? "Access forbidden. The website might be blocking our requests."
+        : "An error occurred while scanning the URL. The website might have CORS restrictions.";
+      
       toast({
         title: "Scan Failed",
-        description: "An error occurred while scanning the URL",
+        description: errorMessage,
         variant: "destructive",
       });
       console.error("Scan error:", error);
@@ -112,3 +122,4 @@ const HeaderScanner = () => {
 };
 
 export { HeaderScanner };
+
