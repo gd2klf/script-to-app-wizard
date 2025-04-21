@@ -73,6 +73,7 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
               <TableRow>
                 <TableHead>Method</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Response Code</TableHead>
                 <TableHead>Security Impact</TableHead>
               </TableRow>
             </TableHeader>
@@ -87,6 +88,9 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
                     >
                       {enabled ? 'Enabled' : 'Disabled'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {enabled ? '200 OK' : '405 Method Not Allowed'}
                   </TableCell>
                   <TableCell>
                     {method === 'TRACE' && enabled && (
