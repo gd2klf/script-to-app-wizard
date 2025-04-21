@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import axios from 'axios';
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +14,12 @@ const ALTERNATIVE_PROXIES = {
   'cors-anywhere': 'https://cors-anywhere.herokuapp.com/',
   'allorigins': 'https://api.allorigins.win/raw?url='
 };
+
+interface LogEntry {
+  timestamp: string;
+  type: 'request' | 'response' | 'error';
+  message: string;
+}
 
 const checkMethod = async (url: string, method: string, useProxy: boolean, proxyUrl: string): Promise<boolean> => {
   try {
@@ -34,7 +39,13 @@ export const useSecurity = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SecurityResult | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const { toast } = useToast();
+
+  const addLog = (type: 'request' | 'response' | 'error', message: string) => {
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    setLogs(prev => [...prev, { timestamp, type, message }]);
+  };
 
   const scanUrl = async (
     url: string,
@@ -49,29 +60,39 @@ export const useSecurity = () => {
     setLoading(true);
     setResults(null);
     setErrorDetails(null);
+    setLogs([]); // Clear previous logs
     
     try {
       const proxyUrl = ALTERNATIVE_PROXIES[proxyProvider];
       const finalUrl = useProxy ? `${proxyUrl}${encodeURIComponent(processedUrl)}` : processedUrl;
       
-      console.log(`Attempting to fetch: ${finalUrl}`);
-      const headersResponse = await axios.get(finalUrl);
+      addLog('request', `Initiating scan for: ${processedUrl}`);
+      if (useProxy) {
+        addLog('request', `Using proxy: ${proxyProvider}`);
+      }
       
-      // Convert Axios headers to a plain Record<string, string> object
+      addLog('request', `GET ${finalUrl}`);
+      const headersResponse = await axios.get(finalUrl);
+      addLog('response', `Received response with status: ${headersResponse.status}`);
+      
       const headersPlain: Record<string, string> = {};
       const responseHeaders = headersResponse.headers;
       
-      // Extract headers and ensure they're all strings
       Object.entries(responseHeaders).forEach(([key, value]) => {
         headersPlain[key] = value?.toString() || '';
+        addLog('response', `Header: ${key}: ${value}`);
       });
 
       const methodsToCheck = ['TRACE', 'OPTIONS', 'HEAD', 'DEBUG'];
+      addLog('request', `Testing HTTP methods: ${methodsToCheck.join(', ')}`);
+      
       const methodResults: Record<string, boolean> = {};
 
       await Promise.all(
         methodsToCheck.map(async (method) => {
+          addLog('request', `Testing ${method} method`);
           methodResults[method] = await checkMethod(processedUrl, method, useProxy, proxyUrl);
+          addLog('response', `${method} method ${methodResults[method] ? 'allowed' : 'not allowed'}`);
         })
       );
 
@@ -81,6 +102,7 @@ export const useSecurity = () => {
       };
       
       setResults(response);
+      addLog('response', 'Scan completed successfully');
       toast({
         title: "Scan Complete",
         description: "Security scan has been completed successfully",
@@ -126,6 +148,7 @@ export const useSecurity = () => {
     loading,
     results,
     errorDetails,
+    logs,
     scanUrl
   };
 };
