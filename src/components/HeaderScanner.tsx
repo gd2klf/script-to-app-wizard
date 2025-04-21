@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,10 @@ import { SecurityAssessment } from "./SecurityAssessment";
 import axios from 'axios';
 
 const isTraceEnabled = (response: any): boolean => {
-  // TRACE is only considered enabled if it returns exactly 200 status code
+  return response.status === 200;
+};
+
+const isDebugEnabled = (response: any): boolean => {
   return response.status === 200;
 };
 
@@ -50,7 +54,8 @@ const HeaderScanner = () => {
         methods: {
           TRACE: false,
           OPTIONS: true,
-          HEAD: true
+          HEAD: true,
+          DEBUG: true // Simulated DEBUG method response
         }
       };
       

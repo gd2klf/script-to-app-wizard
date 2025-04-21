@@ -81,7 +81,10 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
                 <TableRow key={method}>
                   <TableCell className="font-medium">{method}</TableCell>
                   <TableCell>
-                    <Badge variant={enabled ? 'destructive' : 'default'}>
+                    <Badge 
+                      variant={enabled ? 'destructive' : 'default'}
+                      className={method === 'DEBUG' && enabled ? 'bg-[#ea384c]' : ''}
+                    >
                       {enabled ? 'Enabled' : 'Disabled'}
                     </Badge>
                   </TableCell>
@@ -92,7 +95,10 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
                     {method === 'TRACE' && !enabled && (
                       <span className="text-green-600">TRACE method is properly disabled</span>
                     )}
-                    {method !== 'TRACE' && (
+                    {method === 'DEBUG' && enabled && (
+                      <span className="text-red-600">DEBUG method is enabled - potential security risk</span>
+                    )}
+                    {method !== 'TRACE' && method !== 'DEBUG' && (
                       <span className="text-gray-600">Standard HTTP method</span>
                     )}
                   </TableCell>
