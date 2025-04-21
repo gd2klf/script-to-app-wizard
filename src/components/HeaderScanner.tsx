@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { SecurityAssessment } from "./SecurityAssessment";
 import axios from 'axios';
 
 const isTraceEnabled = (response: any): boolean => {
@@ -11,7 +11,6 @@ const isTraceEnabled = (response: any): boolean => {
   return response.status === 200;
 };
 
-// Create the HeaderScanner component
 const HeaderScanner = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,25 +101,9 @@ const HeaderScanner = () => {
         </AlertDescription>
       </Alert>
 
-      {results && (
-        <div className="mt-6">
-          <h3 className="font-semibold mb-2">Security Headers</h3>
-          <div className="bg-gray-50 p-3 rounded-md mb-4">
-            <pre className="whitespace-pre-wrap text-sm">
-              {JSON.stringify(results.headers, null, 2)}
-            </pre>
-          </div>
-
-          <h3 className="font-semibold mb-2">HTTP Methods</h3>
-          <div className="bg-gray-50 p-3 rounded-md">
-            <pre className="whitespace-pre-wrap text-sm">
-              {JSON.stringify(results.methods, null, 2)}
-            </pre>
-          </div>
-        </div>
-      )}
+      {results && <SecurityAssessment results={results} />}
     </div>
   );
 };
 
-export { isTraceEnabled, HeaderScanner };
+export { HeaderScanner };
