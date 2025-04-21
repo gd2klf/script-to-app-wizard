@@ -7,7 +7,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import axios from "axios";
-import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Define security header types
 interface SecurityHeaders {
@@ -68,6 +69,7 @@ const HeaderScanner = () => {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ScanResults | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Validate URL format
   const validateUrl = (input: string): boolean => {
@@ -84,7 +86,6 @@ const HeaderScanner = () => {
   // Create proxy URL to bypass CORS
   const createProxyUrl = (targetUrl: string, method: string = 'GET') => {
     // Using CORS proxy for testing purposes
-    // In production, you'd want to use your own proxy server
     return `https://cors-anywhere.herokuapp.com/${targetUrl}`;
   };
 
@@ -173,7 +174,25 @@ const HeaderScanner = () => {
         if (err.code === 'ECONNABORTED') {
           setError("Request timed out. The server might be slow or unreachable.");
         } else if (err.response) {
-          setError(`Error: HTTP ${err.response.status} - ${err.response.statusText}`);
+          if (err.response.status === 403) {
+            setError("Error: HTTP 403 - Forbidden. The CORS proxy (cors-anywhere) is likely blocking your request. You need to request temporary access to the demo server.");
+            toast({
+              title: "CORS Proxy Access Required",
+              description: "You need to request temporary access to the cors-anywhere demo server.",
+              variant: "destructive",
+              action: (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank")}
+                >
+                  Request Access
+                </Button>
+              ),
+            });
+          } else {
+            setError(`Error: HTTP ${err.response.status} - ${err.response.statusText}`);
+          }
         } else if (err.request) {
           setError("Error: No response received. The server might be down or the URL might be incorrect.");
         } else {
@@ -197,7 +216,7 @@ const HeaderScanner = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-col md:flex-row">
             <Input
               type="url"
               placeholder="https://example.com"
@@ -219,6 +238,21 @@ const HeaderScanner = () => {
           )}
         </CardContent>
       </Card>
+
+      <Alert className="mb-6" variant="default">
+        <Info className="h-4 w-4" />
+        <AlertTitle>About CORS Proxies</AlertTitle>
+        <AlertDescription>
+          This tool uses a CORS proxy to bypass browser security restrictions. If you get a 403 Forbidden error, you may need to 
+          <Button 
+            variant="link" 
+            className="p-0 h-auto font-medium text-blue-600 hover:text-blue-800" 
+            onClick={() => window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank")}
+          >
+            request temporary access
+          </Button> to the demo server.
+        </AlertDescription>
+      </Alert>
 
       {error && (
         <Alert variant="destructive" className="mb-6">
