@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,6 @@ import axios from "axios";
 import { AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Define security header types
 interface SecurityHeaders {
   [key: string]: string | null;
 }
@@ -27,7 +25,6 @@ interface ScanResults {
   url: string;
 }
 
-// List of important security headers to check
 const SECURITY_HEADERS = [
   {
     name: "Strict-Transport-Security",
@@ -71,7 +68,6 @@ const HeaderScanner = () => {
   const [urlError, setUrlError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Validate URL format
   const validateUrl = (input: string): boolean => {
     try {
       new URL(input);
@@ -83,10 +79,36 @@ const HeaderScanner = () => {
     }
   };
 
-  // Create proxy URL to bypass CORS
   const createProxyUrl = (targetUrl: string, method: string = 'GET') => {
-    // Using CORS proxy for testing purposes
     return `https://cors-anywhere.herokuapp.com/${targetUrl}`;
+  };
+
+  const isTraceEnabled = (response: any): boolean => {
+    if (response.status >= 200 && response.status < 300) {
+      return true;
+    }
+    
+    const allow = response.headers['allow'];
+    if (allow && allow.toUpperCase().includes('TRACE')) {
+      return true;
+    }
+
+    if (response.data && typeof response.data === 'string') {
+      if (response.data.includes('TRACE') && response.data.includes('HTTP')) {
+        return true;
+      }
+    }
+
+    const disabledStatusCodes = [
+      405,
+      501,
+      403,
+      401,
+      404,
+      400
+    ];
+
+    return !disabledStatusCodes.includes(response.status);
   };
 
   const scanHeaders = async () => {
@@ -99,15 +121,13 @@ const HeaderScanner = () => {
     setResults(null);
 
     try {
-      // Make a request to check headers
       const response = await axios.get(createProxyUrl(url), {
         timeout: 10000,
         headers: {
-          'X-Requested-With': 'XMLHttpRequest', // Required for cors-anywhere
+          'X-Requested-With': 'XMLHttpRequest',
         }
       });
 
-      // Check for DEBUG and TRACE methods
       const methodTests: MethodTestResult[] = [];
       
       try {
@@ -123,7 +143,7 @@ const HeaderScanner = () => {
         
         methodTests.push({
           method: 'DEBUG',
-          enabled: debugResponse.status !== 405, // 405 = Method Not Allowed
+          enabled: debugResponse.status !== 405,
           statusCode: debugResponse.status
         });
       } catch (e) {
@@ -147,7 +167,7 @@ const HeaderScanner = () => {
         
         methodTests.push({
           method: 'TRACE',
-          enabled: traceResponse.status !== 405, // 405 = Method Not Allowed
+          enabled: isTraceEnabled(traceResponse),
           statusCode: traceResponse.status
         });
       } catch (e) {
@@ -158,7 +178,6 @@ const HeaderScanner = () => {
         });
       }
 
-      // Process the headers
       const headers: SecurityHeaders = {};
       SECURITY_HEADERS.forEach(header => {
         headers[header.name] = response.headers[header.name.toLowerCase()] || null;
@@ -264,7 +283,6 @@ const HeaderScanner = () => {
 
       {results && (
         <div className="space-y-6">
-          {/* Security Headers Results */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -315,7 +333,6 @@ const HeaderScanner = () => {
             </CardContent>
           </Card>
 
-          {/* HTTP Methods Results */}
           <Card>
             <CardHeader>
               <CardTitle>HTTP Method Tests</CardTitle>
