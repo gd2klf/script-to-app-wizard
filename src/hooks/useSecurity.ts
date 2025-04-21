@@ -56,7 +56,15 @@ export const useSecurity = () => {
       
       console.log(`Attempting to fetch: ${finalUrl}`);
       const headersResponse = await axios.get(finalUrl);
-      const headers = headersResponse.headers;
+      
+      // Convert Axios headers to a plain Record<string, string> object
+      const headersPlain: Record<string, string> = {};
+      const responseHeaders = headersResponse.headers;
+      
+      // Extract headers and ensure they're all strings
+      Object.entries(responseHeaders).forEach(([key, value]) => {
+        headersPlain[key] = value?.toString() || '';
+      });
 
       const methodsToCheck = ['TRACE', 'OPTIONS', 'HEAD', 'DEBUG'];
       const methodResults: Record<string, boolean> = {};
@@ -67,8 +75,8 @@ export const useSecurity = () => {
         })
       );
 
-      const response = {
-        headers,
+      const response: SecurityResult = {
+        headers: headersPlain,
         methods: methodResults
       };
       
