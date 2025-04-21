@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useSecurity } from '@/hooks/useSecurity';
 import { SecurityAssessment } from "./SecurityAssessment";
@@ -7,14 +8,12 @@ import { ScanProgress } from './scanner/ScanProgress';
 
 const HeaderScanner = () => {
   const [url, setUrl] = useState('');
-  const [useProxy, setUseProxy] = useState(true);
-  const [selectedProxy, setSelectedProxy] = useState<string>('corsproxy.io');
   const { loading, results, errorDetails, scanUrl, logs } = useSecurity();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
-    await scanUrl(url, useProxy, selectedProxy as any);
+    await scanUrl(url);
   };
 
   return (
@@ -25,10 +24,6 @@ const HeaderScanner = () => {
       <ScanForm
         url={url}
         setUrl={setUrl}
-        useProxy={useProxy}
-        setUseProxy={setUseProxy}
-        selectedProxy={selectedProxy}
-        setSelectedProxy={setSelectedProxy}
         onSubmit={handleSubmit}
         loading={loading}
       />

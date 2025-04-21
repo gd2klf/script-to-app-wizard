@@ -1,19 +1,11 @@
 
 import { useState } from 'react';
-import axios from 'axios';
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type SecurityResult = {
   headers: Record<string, string>;
   methods: Record<string, boolean>;
-};
-
-type ProxyProvider = 'corsproxy.io' | 'cors-anywhere' | 'allorigins';
-
-const ALTERNATIVE_PROXIES = {
-  'corsproxy.io': 'https://corsproxy.io/?',
-  'cors-anywhere': 'https://cors-anywhere.herokuapp.com/',
-  'allorigins': 'https://api.allorigins.win/raw?url='
 };
 
 interface LogEntry {
@@ -22,17 +14,19 @@ interface LogEntry {
   message: string;
 }
 
-const checkMethod = async (url: string, method: string, useProxy: boolean, proxyUrl: string): Promise<boolean> => {
+const checkMethod = async (url: string, method: string): Promise<boolean> => {
   try {
-    const finalUrl = useProxy ? `${proxyUrl}${encodeURIComponent(url)}` : url;
-    await axios({ 
-      url: finalUrl, 
-      method: method as any,
-      timeout: 5000
+    const { data, error } = await supabase.functions.invoke('security-scanner', {
+      body: { url, method }
     });
-    return true;
+    
+    if (error) throw error;
+    
+    // If response status is not 405 Method Not Allowed, the method is considered allowed
+    return data.status !== 405;
   } catch (error: any) {
-    return error.response?.status !== 405;
+    console.error(`Error checking method ${method}:`, error);
+    return false;
   }
 };
 
@@ -54,11 +48,7 @@ export const useSecurity = () => {
     });
   };
 
-  const scanUrl = async (
-    url: string,
-    useProxy: boolean,
-    proxyProvider: ProxyProvider
-  ) => {
+  const scanUrl = async (url: string) => {
     let processedUrl = url;
     if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
       processedUrl = `https://${processedUrl}`;
@@ -70,23 +60,22 @@ export const useSecurity = () => {
     setLogs([]); // Clear previous logs
     
     try {
-      const proxyUrl = ALTERNATIVE_PROXIES[proxyProvider];
-      const finalUrl = useProxy ? `${proxyUrl}${encodeURIComponent(processedUrl)}` : processedUrl;
-      
       addLog('request', `Initiating scan for: ${processedUrl}`);
-      if (useProxy) {
-        addLog('request', `Using proxy: ${proxyProvider}`);
-      }
+      addLog('request', 'Using Supabase Edge Function');
       
       // Log the complete request information
       addLog('request', '=== REQUEST ===');
-      addLog('request', `URL: ${finalUrl}`);
+      addLog('request', `URL: ${processedUrl}`);
       addLog('request', 'Method: GET');
       addLog('request', 'Headers:');
-      addLog('request', '  Accept: */*');
-      addLog('request', '  User-Agent: axios/1.8.4');
+      addLog('request', '  User-Agent: Security-Scanner/1.0');
       
-      const headersResponse = await axios.get(finalUrl);
+      // Make the request through our edge function
+      const { data: headersResponse, error } = await supabase.functions.invoke('security-scanner', {
+        body: { url: processedUrl }
+      });
+      
+      if (error) throw error;
       
       // Log the complete response information
       addLog('response', '=== RESPONSE ===');
@@ -109,7 +98,7 @@ export const useSecurity = () => {
       await Promise.all(
         methodsToCheck.map(async (method) => {
           addLog('request', `Testing ${method} method...`);
-          methodResults[method] = await checkMethod(processedUrl, method, useProxy, proxyUrl);
+          methodResults[method] = await checkMethod(processedUrl, method);
           addLog('response', `${method} method: ${methodResults[method] ? 'ALLOWED (potentially unsafe)' : 'NOT ALLOWED (secure)'}`);
         })
       );
@@ -131,23 +120,9 @@ export const useSecurity = () => {
       let errorMessage = "An error occurred while scanning the URL.";
       let errorDetail = "";
       
-      if (error.response) {
-        errorMessage = `Server responded with status: ${error.response.status}`;
-        if (error.response.status === 403) {
-          errorMessage = "Access forbidden. The website might be blocking our requests.";
-        }
-        errorDetail = `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data || {})}`;
-      } else if (error.request) {
-        errorMessage = "No response received from the server.";
-        errorDetail = "The request was made but the server didn't respond. This could be due to network issues, firewall blocks, or an unreachable host.";
-      } else {
-        errorMessage = `Error setting up request: ${error.message}`;
-        errorDetail = error.message || "Unknown error occurred";
-      }
-      
-      if (error.code === "ERR_NETWORK") {
-        errorMessage = "Network error occurred. The URL might be unreachable or blocked.";
-        errorDetail = "This could be due to network connectivity issues, a firewall blocking access, or the host being unreachable.";
+      if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+        errorDetail = error.message;
       }
       
       setErrorDetails(errorDetail);
