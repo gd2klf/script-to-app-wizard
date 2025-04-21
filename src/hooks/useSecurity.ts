@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import axios from 'axios';
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +48,12 @@ export const useSecurity = () => {
     setLogs(prev => [...prev, { timestamp, type, message }]);
   };
 
+  const logHeaders = (headers: Record<string, any>, prefix: string) => {
+    Object.entries(headers).forEach(([key, value]) => {
+      addLog('response', `${prefix}${key}: ${value}`);
+    });
+  };
+
   const scanUrl = async (
     url: string,
     useProxy: boolean,
@@ -71,28 +78,39 @@ export const useSecurity = () => {
         addLog('request', `Using proxy: ${proxyProvider}`);
       }
       
-      addLog('request', `GET ${finalUrl}`);
+      // Log the complete request information
+      addLog('request', '=== REQUEST ===');
+      addLog('request', `URL: ${finalUrl}`);
+      addLog('request', 'Method: GET');
+      addLog('request', 'Headers:');
+      addLog('request', '  Accept: */*');
+      addLog('request', '  User-Agent: axios/1.8.4');
+      
       const headersResponse = await axios.get(finalUrl);
-      addLog('response', `Received response with status: ${headersResponse.status}`);
+      
+      // Log the complete response information
+      addLog('response', '=== RESPONSE ===');
+      addLog('response', `Status: ${headersResponse.status} ${headersResponse.statusText}`);
+      addLog('response', 'Headers:');
+      logHeaders(headersResponse.headers, '  ');
       
       const headersPlain: Record<string, string> = {};
       const responseHeaders = headersResponse.headers;
       
       Object.entries(responseHeaders).forEach(([key, value]) => {
         headersPlain[key] = value?.toString() || '';
-        addLog('response', `Header: ${key}: ${value}`);
       });
 
       const methodsToCheck = ['TRACE', 'OPTIONS', 'HEAD', 'DEBUG'];
-      addLog('request', `Testing HTTP methods: ${methodsToCheck.join(', ')}`);
+      addLog('request', '\n=== TESTING HTTP METHODS ===');
       
       const methodResults: Record<string, boolean> = {};
 
       await Promise.all(
         methodsToCheck.map(async (method) => {
-          addLog('request', `Testing ${method} method`);
+          addLog('request', `Testing ${method} method...`);
           methodResults[method] = await checkMethod(processedUrl, method, useProxy, proxyUrl);
-          addLog('response', `${method} method ${methodResults[method] ? 'allowed' : 'not allowed'}`);
+          addLog('response', `${method} method: ${methodResults[method] ? 'ALLOWED (potentially unsafe)' : 'NOT ALLOWED (secure)'}`);
         })
       );
 
@@ -102,7 +120,7 @@ export const useSecurity = () => {
       };
       
       setResults(response);
-      addLog('response', 'Scan completed successfully');
+      addLog('response', '\n=== SCAN COMPLETED ===');
       toast({
         title: "Scan Complete",
         description: "Security scan has been completed successfully",

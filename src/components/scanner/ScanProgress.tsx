@@ -21,13 +21,13 @@ export const ScanProgress = ({ logs }: ScanProgressProps) => {
         <CardTitle>Scan Progress</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+        <ScrollArea className="h-[400px] w-full rounded-md border bg-slate-50 p-4 font-mono">
           {logs.map((log, index) => (
             <div
               key={index}
-              className={`mb-2 font-mono text-sm ${
+              className={`mb-2 whitespace-pre-wrap text-sm ${
                 log.type === 'error' ? 'text-red-500' :
-                log.type === 'request' ? 'text-blue-500' : 'text-green-500'
+                log.type === 'request' ? 'text-blue-500' : 'text-green-600'
               }`}
             >
               <span className="text-gray-500">[{log.timestamp}] </span>
