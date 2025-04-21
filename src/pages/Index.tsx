@@ -1,5 +1,5 @@
 
-import HeaderScanner from "@/components/HeaderScanner";
+import { HeaderScanner } from "@/components/HeaderScanner";
 
 const Index = () => {
   return (
