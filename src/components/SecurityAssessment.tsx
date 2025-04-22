@@ -125,6 +125,24 @@ const getHeaderStatus = (header: string, value: string, allHeaders?: Record<stri
       }
       return analyzeStrictTransportSecurity(value, occurrences);
     }
+    case 'x-frame-options': {
+      if (!value) {
+        return { status: 'warning', message: 'X-Frame-Options header is missing' };
+      }
+      const val = value.trim().toUpperCase();
+      if (
+        val === 'DENY' ||
+        val === 'SAMEORIGIN' ||
+        val.startsWith('ALLOW-FROM')
+      ) {
+        return { status: 'success', message: 'X-Frame-Options is properly set' };
+      }
+      return {
+        status: 'warning',
+        message:
+          "X-Frame-Options should be set to DENY, SAMEORIGIN or 'ALLOW-FROM <url>'"
+      };
+    }
     case 'x-xss-protection':
       return { status: 'success', message: 'XSS protection is enabled' };
     case 'x-content-type-options':
