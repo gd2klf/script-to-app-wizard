@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +14,7 @@ interface LogEntry {
 }
 
 const MAX_RETRIES = 1;
+const TIMEOUT_MS = 5000;
 
 // Create a module-level variable to store logs so they're accessible to the checkMethod function
 let globalLogs: LogEntry[] = [];
@@ -49,63 +49,107 @@ export const useSecurity = () => {
     });
   };
 
-  // Helper function to make requests with retry logic
-  const makeRequestWithRetry = async (url: string, method?: string, retryCount = 0) => {
+  // new: handles a 5s timeout, with a single retry if timeout occurs
+  const makeRequestWithRetry = async (
+    url: string,
+    method?: string,
+    retryCount = 0
+  ): Promise<any> => {
+    let hasTimedOut = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     try {
       addLog('request', `Making ${method || 'GET'} request to ${url}...`);
-      
-      const { data, error } = await supabase.functions.invoke('security-scanner', {
-        body: { url, method }
+
+      // Set up timeout promise
+      const controller = new AbortController();
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          hasTimedOut = true;
+          controller.abort();
+          reject(new Error('Request timed out after 5 seconds'));
+        }, TIMEOUT_MS);
       });
-      
+
+      // main fetch wrapped in race against timeout
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke('security-scanner', {
+          body: { url, method },
+          signal: (controller as any).signal
+        }),
+        timeoutPromise,
+      ]);
+
+      if (timeoutId) clearTimeout(timeoutId);
+
       if (error) {
-        console.error(`Error with ${method || 'GET'} request:`, error);
+        addLog('error', `Error with ${method || 'GET'} request: ${error.message}`);
         throw error;
       }
-      
-      // Check for timeout error and retry if needed
-      if (data.error && data.isTimeout && retryCount < MAX_RETRIES) {
+
+      // Supabase edge function may also return a timeout in data
+      if (data && data.error && data.isTimeout && retryCount < MAX_RETRIES) {
         addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
         return makeRequestWithRetry(url, method, retryCount + 1);
       }
-      
-      // If there's an error from the edge function, throw it
-      if (data.error) {
-        throw new Error(data.message || 'Error occurred in edge function');
+
+      if (hasTimedOut && retryCount < MAX_RETRIES) {
+        addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
+        return makeRequestWithRetry(url, method, retryCount + 1);
       }
-      
+
+      if (data && data.error) {
+        throw new Error(data.message || 'Edge function error');
+      }
+
       addLog('response', `${method || 'GET'} request completed with status: ${data.status}`);
       return data;
     } catch (error: any) {
-      if (error.message?.includes('timeout') || error.name === 'AbortError') {
-        if (retryCount < MAX_RETRIES) {
-          addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
-          return makeRequestWithRetry(url, method, retryCount + 1);
-        } else {
-          addLog('error', `${method || 'GET'} request failed after retry: Timeout`);
-          throw new Error(`Request timed out after multiple attempts`);
-        }
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (
+        (error?.message?.includes('timeout') || error?.name === 'AbortError') &&
+        retryCount < MAX_RETRIES
+      ) {
+        addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
+        return makeRequestWithRetry(url, method, retryCount + 1);
+      } else if (retryCount >= MAX_RETRIES) {
+        addLog('error', `${method || 'GET'} request failed after retry: Timeout`);
+        throw new Error(`Request timed out after multiple attempts`);
       }
+      addLog('error', `Error with ${method || 'GET'} request: ${error.message}`);
       throw error;
     }
   };
 
-  // Separate function to check HTTP methods with retry logic
+  // updated: checkMethod uses makeRequestWithRetry, only DEBUG with status 200 is allowed
   const checkMethod = async (url: string, method: string): Promise<{ allowed: boolean; error?: string }> => {
     try {
       addLog('request', `Testing ${method} method...`);
-      
-      // Use our retry function
+
       const data = await makeRequestWithRetry(url, method);
-      
-      // If response status is not 405 Method Not Allowed, the method is considered allowed
-      // 200, 204, 301, 302, etc. are signs that the method might be allowed
-      const isAllowed = data.status !== 405;
-      
-      addLog('response', `${method} method: ${isAllowed ? 'ALLOWED (potentially unsafe)' : 'NOT ALLOWED (secure)'}`);
+
+      let isAllowed = false;
+
+      if (method === 'DEBUG') {
+        // Only mark as allowed if 200
+        isAllowed = data.status === 200;
+      } else {
+        isAllowed = data.status !== 405;
+      }
+
+      addLog(
+        'response',
+        `${method} method: ${
+          isAllowed
+            ? method === 'DEBUG'
+              ? 'ENABLED (danger: 200 status code returned)'
+              : 'ALLOWED (potentially unsafe)'
+            : 'NOT ALLOWED (secure)'
+        }`
+      );
       return { allowed: isAllowed };
     } catch (error: any) {
-      console.error(`Error checking method ${method}:`, error);
       addLog('error', `Error checking ${method} method: ${error.message}`);
       return { allowed: false, error: error.message };
     }
@@ -120,41 +164,41 @@ export const useSecurity = () => {
     setLoading(true);
     setResults(null);
     setErrorDetails(null);
-    
+
     // Reset logs and global logs
     globalLogs = [];
     setLogs([]);
-    
+
     try {
       addLog('request', `Initiating scan for: ${processedUrl}`);
       addLog('request', 'Using Supabase Edge Function with 5-second timeout');
-      
+
       // Log the complete request information
       addLog('request', '=== REQUEST ===');
       addLog('request', `URL: ${processedUrl}`);
       addLog('request', 'Method: GET');
       addLog('request', 'Headers:');
       addLog('request', '  User-Agent: Security-Scanner/1.0');
-      
+
       // Make the request with retry logic for headers
       const headersResponse = await makeRequestWithRetry(processedUrl);
-      
+
       // Log the complete response information
       addLog('response', '=== RESPONSE ===');
       addLog('response', `Status: ${headersResponse.status} ${headersResponse.statusText}`);
       addLog('response', 'Headers:');
       logHeaders(headersResponse.headers, '  ');
-      
+
       const headersPlain: Record<string, string> = {};
       const responseHeaders = headersResponse.headers;
-      
+
       Object.entries(responseHeaders).forEach(([key, value]) => {
         headersPlain[key] = value?.toString() || '';
       });
 
       const methodsToCheck = ['TRACE', 'OPTIONS', 'HEAD', 'DEBUG'];
       addLog('request', '\n=== TESTING HTTP METHODS ===');
-      
+
       const methodResults: Record<string, boolean> = {};
       const methodErrors: Record<string, string> = {};
 
@@ -180,7 +224,7 @@ export const useSecurity = () => {
         headers: headersPlain,
         methods: methodResults
       };
-      
+
       setResults(response);
       addLog('response', '\n=== SCAN COMPLETED ===');
       toast({
@@ -189,18 +233,18 @@ export const useSecurity = () => {
       });
     } catch (error: any) {
       console.error("Scan error:", error);
-      
+
       let errorMessage = "An error occurred while scanning the URL.";
       let errorDetail = "";
-      
+
       if (error.message) {
         errorMessage = `Error: ${error.message}`;
         errorDetail = error.message;
       }
-      
+
       setErrorDetails(errorDetail);
       addLog('error', `Scan failed: ${errorDetail}`);
-      
+
       toast({
         title: "Scan Failed",
         description: errorMessage,
