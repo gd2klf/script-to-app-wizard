@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const TIMEOUT_MS = 5000; // 5 second timeout
+const ALLOWED_METHODS = ['GET', 'TRACE', 'DEBUG'];
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,11 +18,27 @@ serve(async (req) => {
   
   try {
     const { url, method } = await req.json();
-    
-    console.log(`Scanning URL: ${url} with method: ${method || 'GET'}`);
-    
+    const actualMethod = (method || 'GET').toUpperCase();
+
+    console.log(`Scanning URL: ${url} with method: ${actualMethod}`);
+
     if (!url) {
       throw new Error('URL is required');
+    }
+
+    if (!ALLOWED_METHODS.includes(actualMethod)) {
+      console.error(`Attempted to use disallowed method: ${actualMethod}`);
+      return new Response(
+        JSON.stringify({
+          error: true,
+          message: `HTTP method ${actualMethod} is not supported. Allowed methods: GET, TRACE, DEBUG.`,
+          method: actualMethod
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
     
     let processedUrl = url;
@@ -36,7 +53,7 @@ serve(async (req) => {
     try {
       // Make the actual request to the target URL
       const response = await fetch(processedUrl, { 
-        method: method || 'GET',
+        method: actualMethod,
         headers: {
           'User-Agent': 'Security-Scanner/1.0'
         },
@@ -62,7 +79,7 @@ serve(async (req) => {
           url: response.url,
           redirected: response.redirected,
           ok: response.ok,
-          method: method || 'GET' // Return the method that was used
+          method: actualMethod // Return the method that was used
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -72,7 +89,7 @@ serve(async (req) => {
       // Clear the timeout
       clearTimeout(timeoutId);
       
-      console.error(`Fetch error with method ${method || 'GET'}:`, fetchError);
+      console.error(`Fetch error with method ${actualMethod}:`, fetchError);
       
       // If we have an abort error (timeout), provide a specific message
       if (fetchError.name === 'AbortError') {
@@ -80,7 +97,7 @@ serve(async (req) => {
           JSON.stringify({ 
             error: true, 
             message: 'Request timed out after 5 seconds',
-            method: method || 'GET',
+            method: actualMethod,
             isTimeout: true
           }),
           { 
@@ -95,7 +112,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: true, 
           message: fetchError.message || 'Failed to connect to the target server',
-          method: method || 'GET'
+          method: actualMethod
         }),
         { 
           status: 502,
