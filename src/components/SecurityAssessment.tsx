@@ -127,6 +127,9 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
                     {method === 'DEBUG' && enabled && (
                       <span className="text-red-600">DEBUG method is enabled - potential security risk</span>
                     )}
+                    {method === 'DEBUG' && !enabled && (
+                      <span className="text-green-600">DEBUG method is properly disabled</span>
+                    )}
                     {method !== 'TRACE' && method !== 'DEBUG' && (
                       <span className="text-gray-600">Standard HTTP method</span>
                     )}
@@ -142,3 +145,4 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 };
 
 export { SecurityAssessment };
+
