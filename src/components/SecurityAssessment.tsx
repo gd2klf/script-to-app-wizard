@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -69,24 +68,42 @@ function analyzeSetCookieHeader(value: string) {
   };
 }
 
-// NEW: Analyze Strict-Transport-Security header
+// Updated: Analyze Strict-Transport-Security header
 function analyzeStrictTransportSecurity(headerValue: string, headerOccurrences: number) {
   if (!headerValue) {
     return { status: 'warning', message: 'Strict-Transport-Security header is missing' };
   }
+  
   if (headerOccurrences !== 1) {
     return { status: 'warning', message: 'Strict-Transport-Security header must be present exactly once' };
   }
-  const hasMaxAge = /max-age=\d+/i.test(headerValue);
-  const hasIncludeSubdomains = /includeSubDomains/i.test(headerValue);
+
+  // Count occurrences of max-age directive
+  const maxAgeMatches = headerValue.match(/max-age=\d+/gi);
+  const maxAgeCount = maxAgeMatches ? maxAgeMatches.length : 0;
+  
+  // Count occurrences of includeSubDomains directive (case insensitive)
+  const includeSubdomainsMatches = headerValue.match(/includeSubDomains/gi);
+  const includeSubdomainsCount = includeSubdomainsMatches ? includeSubdomainsMatches.length : 0;
 
   let issues: string[] = [];
-  if (!hasMaxAge) issues.push('Missing max-age directive');
-  if (!hasIncludeSubdomains) issues.push('Missing includeSubDomains directive');
+  
+  if (maxAgeCount === 0) {
+    issues.push('Missing max-age directive');
+  } else if (maxAgeCount > 1) {
+    issues.push('Multiple max-age directives found (only one allowed)');
+  }
+  
+  if (includeSubdomainsCount === 0) {
+    issues.push('Missing includeSubDomains directive');
+  } else if (includeSubdomainsCount > 1) {
+    issues.push('Multiple includeSubDomains directives found (only one allowed)');
+  }
 
   if (issues.length === 0) {
     return { status: 'success', message: 'Strict-Transport-Security is properly configured' };
   }
+  
   return { status: 'warning', message: issues.join('; ') };
 }
 
@@ -221,4 +238,3 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 };
 
 export { SecurityAssessment };
-
