@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +83,32 @@ export const useSecurity = () => {
     });
   };
 
+  // Helper function to make requests with retry logic
+  const makeRequestWithRetry = async (url: string, method?: string, retryCount = 0) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('security-scanner', {
+        body: { url, method }
+      });
+      
+      if (error) throw error;
+      
+      // Check for timeout error and retry if needed
+      if (data.error && data.isTimeout && retryCount < MAX_RETRIES) {
+        addLog('request', `Request timed out, retrying${method ? ` ${method} method` : ''}...`);
+        return makeRequestWithRetry(url, method, retryCount + 1);
+      }
+      
+      // If there's an error from the edge function, throw it
+      if (data.error) {
+        throw new Error(data.message || 'Error occurred in edge function');
+      }
+      
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const scanUrl = async (url: string) => {
     let processedUrl = url;
     if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
@@ -107,30 +134,8 @@ export const useSecurity = () => {
       addLog('request', 'Headers:');
       addLog('request', '  User-Agent: Security-Scanner/1.0');
       
-      // Make the initial request through our edge function
-      const { data: headersResponse, error } = await supabase.functions.invoke('security-scanner', {
-        body: { url: processedUrl }
-      });
-
-      if (error) throw error;
-
-      // Check if the response is a timeout and we should retry
-      if (headersResponse.error && headersResponse.isTimeout) {
-        addLog('request', 'Initial request timed out, retrying...');
-        const { data: retryResponse, error: retryError } = await supabase.functions.invoke('security-scanner', {
-          body: { url: processedUrl }
-        });
-        
-        if (retryError) throw retryError;
-        if (retryResponse.error) throw new Error(retryResponse.message);
-        
-        headersResponse = retryResponse;
-      }
-      
-      // Check if headersResponse contains an error from the edge function
-      if (headersResponse.error) {
-        throw new Error(headersResponse.message || 'Error occurred in edge function');
-      }
+      // Make the request with retry logic
+      const headersResponse = await makeRequestWithRetry(processedUrl);
       
       // Log the complete response information
       addLog('response', '=== RESPONSE ===');
