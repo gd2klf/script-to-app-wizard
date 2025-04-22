@@ -28,10 +28,46 @@ const analyzeCsp = (cspHeader: string) => {
   return { status: 'success', message: 'CSP is properly configured' };
 };
 
+function analyzeSetCookieHeader(value: string) {
+  // Cookies can be separated by comma, but attributes can also contain comma (rare). To be robust,
+  // split by comma only if not within a quoted string, or assume single cookie per Set-Cookie header (most common).
+  // Per spec, most servers send one Set-Cookie per header, but just in case...
+  const cookies = value.split(/,(?=[^;]*=)/g);
+  const issues = [];
+  let allSecure = true;
+
+  for (const raw of cookies) {
+    const cookie = raw.trim();
+    // "Secure" attribute check (case-insensitive)
+    const hasSecure = /(;|^) *secure(=|;|$)/i.test(cookie);
+    if (!hasSecure) {
+      allSecure = false;
+      // extract cookie name for clarity
+      const match = cookie.match(/^([^=;]*)/);
+      const name = match ? match[1].trim() : '[unnamed cookie]';
+      issues.push(`Cookie "${name}" does not have the Secure flag`);
+    }
+  }
+
+  if (allSecure) {
+    return {
+      status: 'success',
+      message: 'All cookies are marked as Secure',
+    };
+  }
+
+  return {
+    status: 'warning',
+    message: issues.join('; '),
+  };
+}
+
 const getHeaderStatus = (header: string, value: string) => {
   switch (header.toLowerCase()) {
     case 'content-security-policy':
       return analyzeCsp(value);
+    case 'set-cookie':
+      return analyzeSetCookieHeader(value);
     case 'x-xss-protection':
       return { status: 'success', message: 'XSS protection is enabled' };
     case 'x-content-type-options':
@@ -145,4 +181,3 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 };
 
 export { SecurityAssessment };
-
