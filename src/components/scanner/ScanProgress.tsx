@@ -12,40 +12,48 @@ interface ScanProgressProps {
 }
 
 function filterLogsForMethod(logs: LogEntry[], method: string) {
-  // For GET, grab anything before "=== TESTING TRACE METHOD ===" or "=== TESTING DEBUG METHOD ===" markers
+  // For GET, grab anything before any "=== TESTING X METHOD ===" markers
   if (method === "GET") {
     const endIdx = logs.findIndex(
-      (log) =>
-        log.message.includes("=== TESTING TRACE METHOD ===") ||
-        log.message.includes("=== TESTING DEBUG METHOD ===")
+      (log) => log.message.includes("=== TESTING ")
     );
     return endIdx === -1 ? logs : logs.slice(0, endIdx);
   }
 
-  // For TRACE or DEBUG, find the specific method section by marker
+  // Find the specific method section's starting point
   const marker = `=== TESTING ${method} METHOD ===`;
   const startIdx = logs.findIndex((log) => log.message.includes(marker));
   
   if (startIdx === -1) return [];
   
-  // Find the end of this method section
-  // For TRACE, end at DEBUG marker or end of logs
-  // For DEBUG, continue to the end of logs
-  const nextMethodMarker = method === "TRACE" 
-    ? "=== TESTING DEBUG METHOD ===" 
-    : null; // DEBUG continues to end
+  // Find logs that belong to this method
+  // This includes errors related to this method, which we can identify by looking for references to the method name
+  let methodLogs = [];
+  let inMethodSection = false;
   
-  let endIdx = logs.length;
-  if (nextMethodMarker) {
-    const nextMarkerIdx = logs.findIndex((log, idx) => 
-      idx > startIdx && log.message.includes(nextMethodMarker)
-    );
-    if (nextMarkerIdx !== -1) {
-      endIdx = nextMarkerIdx;
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    
+    // Start collecting logs when we find the marker
+    if (log.message.includes(marker)) {
+      inMethodSection = true;
+      methodLogs.push(log);
+      continue;
+    }
+    
+    // Stop when we hit the next method marker
+    if (inMethodSection && log.message.includes("=== TESTING ") && !log.message.includes(marker)) {
+      break;
+    }
+    
+    // Include logs that are in the method section or explicitly mention this method
+    if (inMethodSection || 
+        (log.type === 'error' && log.message.toLowerCase().includes(`method ${method.toLowerCase()}`))) {
+      methodLogs.push(log);
     }
   }
   
-  return logs.slice(startIdx, endIdx);
+  return methodLogs;
 }
 
 export const ScanProgress = ({ logs }: ScanProgressProps) => {
