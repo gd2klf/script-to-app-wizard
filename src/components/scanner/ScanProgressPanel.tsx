@@ -16,6 +16,32 @@ interface ScanProgressPanelProps {
 export const ScanProgressPanel = ({ logs, method }: ScanProgressPanelProps) => {
   if (logs.length === 0) return null;
 
+  // Format log message for better cookie display
+  const formatLogMessage = (message: string) => {
+    // Check if this is a Set-Cookie header and format it
+    if (message.startsWith('  set-cookie:') || message.startsWith('  Set-Cookie:')) {
+      const cookieValue = message.substring(message.indexOf(':') + 1).trim();
+      
+      // Split multiple cookies if present
+      const cookies = cookieValue.split(/,(?=[^;]*=)/g).map(c => c.trim());
+      
+      if (cookies.length > 1) {
+        return (
+          <>
+            {message.substring(0, message.indexOf(':') + 1)}
+            <div className="pl-4 mt-1">
+              {cookies.map((cookie, i) => (
+                <div key={i} className="text-xs mb-1">• {cookie}</div>
+              ))}
+            </div>
+          </>
+        );
+      }
+    }
+    
+    return message;
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -32,7 +58,7 @@ export const ScanProgressPanel = ({ logs, method }: ScanProgressPanelProps) => {
               }`}
             >
               <span className="text-gray-500">[{log.timestamp}] </span>
-              {log.message}
+              {formatLogMessage(log.message)}
             </div>
           ))}
         </ScrollArea>

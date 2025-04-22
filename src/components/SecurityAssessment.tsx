@@ -24,8 +24,8 @@ const importantHeaders = [
 
 const getHeaderStatus = (header: string, value: string | undefined, allHeaders?: Record<string, string>) => {
   // Log the header value to help with debugging
-  if (header.toLowerCase() === 'x-frame-options' && value) {
-    console.log(`X-Frame-Options value: "${value}", length: ${value.length}`);
+  if (header.toLowerCase() === 'set-cookie' && value) {
+    console.log(`Set-Cookie value: "${value}", length: ${value.length}`);
     // Display any hidden characters that might be present
     console.log('Character codes:', [...value].map(c => c.charCodeAt(0)));
   }
@@ -77,6 +77,27 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
     method === 'TRACE' || method === 'DEBUG'
   );
 
+  // Format cookie value for display
+  const formatCookieValue = (value: string) => {
+    if (!value) return null;
+    
+    const cookieStrings = value.split(/,(?=[^;]*=)/g).map(c => c.trim());
+    if (cookieStrings.length <= 1) return value;
+    
+    return (
+      <div className="space-y-1">
+        {cookieStrings.map((cookie, i) => {
+          const name = cookie.split('=')[0];
+          return (
+            <div key={i} className="border-b border-gray-100 pb-1 last:border-0">
+              <span className="font-semibold">{name}</span>: {cookie.substring(name.length)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -99,10 +120,15 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 
                 const value = Object.entries(results.headers).find(([h]) => h.toLowerCase() === header)?.[1];
                 const { status, message } = getHeaderStatus(header, value, results.headers);
+                
                 return (
                   <TableRow key={header}>
                     <TableCell className="font-medium">{header}</TableCell>
-                    <TableCell className="max-w-md break-all">{value || <em className="text-gray-400">Not set</em>}</TableCell>
+                    <TableCell className="max-w-md break-all">
+                      {header.toLowerCase() === 'set-cookie' 
+                        ? formatCookieValue(value) 
+                        : value || <em className="text-gray-400">Not set</em>}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={status === 'success' ? 'default' : status === 'warning' ? 'destructive' : 'secondary'}

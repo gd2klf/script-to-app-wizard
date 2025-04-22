@@ -33,6 +33,23 @@ export const resetLogs = () => {
 /** Utility to log headers (used in main hook) */
 export const logHeaders = (headers: Record<string, any>, prefix: string) => {
   Object.entries(headers).forEach(([key, value]) => {
-    addLog('response', `${prefix}${key}: ${value}`);
+    // Handle set-cookie specially
+    if (key.toLowerCase() === 'set-cookie') {
+      addLog('response', `${prefix}${key}: ${value}`);
+      
+      // Add detailed cookie information
+      if (value) {
+        const cookieStrings = value.toString().split(/,(?=[^;]*=)/g);
+        if (cookieStrings.length > 1) {
+          addLog('response', `${prefix}Found ${cookieStrings.length} cookies:`);
+          cookieStrings.forEach((cookie, i) => {
+            const cookieName = cookie.split('=')[0].trim();
+            addLog('response', `${prefix}  Cookie ${i+1} (${cookieName}): ${cookie.trim()}`);
+          });
+        }
+      }
+    } else {
+      addLog('response', `${prefix}${key}: ${value}`);
+    }
   });
 };
