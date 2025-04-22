@@ -12,12 +12,22 @@ type SecurityResult = {
   methods: Record<string, boolean>;
 };
 
-const getHeaderStatus = (header: string, value: string, allHeaders?: Record<string, string>) => {
+const importantHeaders = [
+  "content-security-policy",
+  "set-cookie",
+  "strict-transport-security",
+  "x-frame-options",
+  "x-xss-protection",
+  "x-content-type-options",
+  "referrer-policy"
+];
+
+const getHeaderStatus = (header: string, value: string | undefined, allHeaders?: Record<string, string>) => {
   switch (header.toLowerCase()) {
     case 'content-security-policy':
-      return analyzeCsp(value);
+      return analyzeCsp(value || '');
     case 'set-cookie':
-      return analyzeSetCookieHeader(value);
+      return analyzeSetCookieHeader(value || '');
     case 'strict-transport-security': {
       let occurrences = 0;
       if (allHeaders) {
@@ -25,26 +35,37 @@ const getHeaderStatus = (header: string, value: string, allHeaders?: Record<stri
           h => h.toLowerCase() === 'strict-transport-security'
         ).length;
       } else {
-        occurrences = 1;
+        occurrences = value ? 1 : 0;
       }
-      return analyzeStrictTransportSecurity(value, occurrences);
+      return analyzeStrictTransportSecurity(value || '', occurrences);
     }
     case 'x-frame-options':
-      return analyzeXFrameOptions(value);
+      return analyzeXFrameOptions(value || '');
     case 'x-xss-protection':
-      return { status: 'success', message: 'XSS protection is enabled' };
+      return value
+        ? { status: 'success', message: 'XSS protection is enabled' }
+        : { status: 'warning', message: 'X-XSS-Protection header is missing' };
     case 'x-content-type-options':
-      return value.toLowerCase() === 'nosniff'
+      return value && value.toLowerCase() === 'nosniff'
         ? { status: 'success', message: 'MIME-type sniffing prevention is enabled' }
         : { status: 'warning', message: 'MIME-type sniffing prevention is not properly configured' };
     case 'referrer-policy':
-      return { status: 'success', message: 'Referrer policy is configured' };
+      return value
+        ? { status: 'success', message: 'Referrer policy is configured' }
+        : { status: 'warning', message: 'Referrer-Policy header is missing' };
     default:
       return { status: 'info', message: 'Standard header' };
   }
 };
 
 const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
+  // Find all "important" headers, even those not present in results.headers
+  const allHeadersSet = new Set([
+    ...Object.keys(results.headers).map(h => h.toLowerCase()),
+    ...importantHeaders
+  ]);
+  const mergedHeaders = Array.from(allHeadersSet);
+
   const filteredMethods = Object.entries(results.methods).filter(([method]) =>
     method === 'TRACE' || method === 'DEBUG'
   );
@@ -65,12 +86,16 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Object.entries(results.headers).map(([header, value]) => {
+              {mergedHeaders.map((header) => {
+                // Only list interesting headers (skip standard ones that would be added by every server like 'date', 'connection', etc.)
+                if (!importantHeaders.includes(header.toLowerCase())) return null;
+
+                const value = Object.entries(results.headers).find(([h]) => h.toLowerCase() === header)?.[1];
                 const { status, message } = getHeaderStatus(header, value, results.headers);
                 return (
                   <TableRow key={header}>
                     <TableCell className="font-medium">{header}</TableCell>
-                    <TableCell className="max-w-md break-all">{value}</TableCell>
+                    <TableCell className="max-w-md break-all">{value || <em className="text-gray-400">Not set</em>}</TableCell>
                     <TableCell>
                       <Badge
                         variant={status === 'success' ? 'default' : status === 'warning' ? 'destructive' : 'secondary'}
@@ -143,3 +168,4 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 };
 
 export { SecurityAssessment };
+
