@@ -23,6 +23,13 @@ const importantHeaders = [
 ];
 
 const getHeaderStatus = (header: string, value: string | undefined, allHeaders?: Record<string, string>) => {
+  // Log the header value to help with debugging
+  if (header.toLowerCase() === 'x-frame-options' && value) {
+    console.log(`X-Frame-Options value: "${value}", length: ${value.length}`);
+    // Display any hidden characters that might be present
+    console.log('Character codes:', [...value].map(c => c.charCodeAt(0)));
+  }
+  
   switch (header.toLowerCase()) {
     case 'content-security-policy':
       return analyzeCsp(value || '');
@@ -168,4 +175,3 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 };
 
 export { SecurityAssessment };
-
