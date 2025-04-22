@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const TIMEOUT_MS = 5000;
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -29,7 +31,7 @@ serve(async (req) => {
     
     // Set a reasonable timeout to avoid hanging requests
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     
     try {
       // Make the actual request to the target URL
@@ -77,8 +79,9 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: true, 
-            message: 'Request timed out',
-            method: method || 'GET'
+            message: 'Request timed out after 5 seconds',
+            method: method || 'GET',
+            isTimeout: true
           }),
           { 
             status: 408,

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +13,9 @@ interface LogEntry {
   message: string;
 }
 
-const checkMethod = async (url: string, method: string): Promise<{ allowed: boolean; error?: string }> => {
+const MAX_RETRIES = 1;
+
+const checkMethod = async (url: string, method: string, retryCount = 0): Promise<{ allowed: boolean; error?: string }> => {
   try {
     addLog('request', `Testing ${method} method...`);
     
@@ -25,6 +26,12 @@ const checkMethod = async (url: string, method: string): Promise<{ allowed: bool
     if (error) {
       console.error(`Error checking method ${method}:`, error);
       return { allowed: false, error: error.message };
+    }
+    
+    // If data contains an error property and it's a timeout, retry if possible
+    if (data.error && data.isTimeout && retryCount < MAX_RETRIES) {
+      addLog('request', `Request timed out, retrying ${method} method...`);
+      return checkMethod(url, method, retryCount + 1);
     }
     
     // If data contains an error property, something went wrong
@@ -100,12 +107,25 @@ export const useSecurity = () => {
       addLog('request', 'Headers:');
       addLog('request', '  User-Agent: Security-Scanner/1.0');
       
-      // Make the request through our edge function
+      // Make the initial request through our edge function
       const { data: headersResponse, error } = await supabase.functions.invoke('security-scanner', {
         body: { url: processedUrl }
       });
-      
+
       if (error) throw error;
+
+      // Check if the response is a timeout and we should retry
+      if (headersResponse.error && headersResponse.isTimeout) {
+        addLog('request', 'Initial request timed out, retrying...');
+        const { data: retryResponse, error: retryError } = await supabase.functions.invoke('security-scanner', {
+          body: { url: processedUrl }
+        });
+        
+        if (retryError) throw retryError;
+        if (retryResponse.error) throw new Error(retryResponse.message);
+        
+        headersResponse = retryResponse;
+      }
       
       // Check if headersResponse contains an error from the edge function
       if (headersResponse.error) {
