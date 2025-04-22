@@ -69,12 +69,45 @@ function analyzeSetCookieHeader(value: string) {
   };
 }
 
-const getHeaderStatus = (header: string, value: string) => {
+// NEW: Analyze Strict-Transport-Security header
+function analyzeStrictTransportSecurity(headerValue: string, headerOccurrences: number) {
+  if (!headerValue) {
+    return { status: 'warning', message: 'Strict-Transport-Security header is missing' };
+  }
+  if (headerOccurrences !== 1) {
+    return { status: 'warning', message: 'Strict-Transport-Security header must be present exactly once' };
+  }
+  const hasMaxAge = /max-age=\d+/i.test(headerValue);
+  const hasIncludeSubdomains = /includeSubDomains/i.test(headerValue);
+
+  let issues: string[] = [];
+  if (!hasMaxAge) issues.push('Missing max-age directive');
+  if (!hasIncludeSubdomains) issues.push('Missing includeSubDomains directive');
+
+  if (issues.length === 0) {
+    return { status: 'success', message: 'Strict-Transport-Security is properly configured' };
+  }
+  return { status: 'warning', message: issues.join('; ') };
+}
+
+const getHeaderStatus = (header: string, value: string, allHeaders?: Record<string, string>) => {
   switch (header.toLowerCase()) {
     case 'content-security-policy':
       return analyzeCsp(value);
     case 'set-cookie':
       return analyzeSetCookieHeader(value);
+    case 'strict-transport-security': {
+      // Count header occurrences in a case-insensitive manner
+      let occurrences = 0;
+      if (allHeaders) {
+        occurrences = Object.keys(allHeaders).filter(
+          h => h.toLowerCase() === 'strict-transport-security'
+        ).length;
+      } else {
+        occurrences = 1;
+      }
+      return analyzeStrictTransportSecurity(value, occurrences);
+    }
     case 'x-xss-protection':
       return { status: 'success', message: 'XSS protection is enabled' };
     case 'x-content-type-options':
@@ -111,7 +144,7 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
             </TableHeader>
             <TableBody>
               {Object.entries(results.headers).map(([header, value]) => {
-                const { status, message } = getHeaderStatus(header, value);
+                const { status, message } = getHeaderStatus(header, value, results.headers);
                 return (
                   <TableRow key={header}>
                     <TableCell className="font-medium">{header}</TableCell>
@@ -188,3 +221,4 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
 };
 
 export { SecurityAssessment };
+
