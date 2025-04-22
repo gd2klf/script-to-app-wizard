@@ -29,30 +29,37 @@ const analyzeCsp = (cspHeader: string) => {
 };
 
 function analyzeSetCookieHeader(value: string) {
-  // Cookies can be separated by comma, but attributes can also contain comma (rare). To be robust,
-  // split by comma only if not within a quoted string, or assume single cookie per Set-Cookie header (most common).
-  // Per spec, most servers send one Set-Cookie per header, but just in case...
   const cookies = value.split(/,(?=[^;]*=)/g);
-  const issues = [];
+  const issues: string[] = [];
   let allSecure = true;
+  let allHttpOnly = true;
 
   for (const raw of cookies) {
     const cookie = raw.trim();
     // "Secure" attribute check (case-insensitive)
     const hasSecure = /(;|^) *secure(=|;|$)/i.test(cookie);
+    const hasHttpOnly = /(;|^) *httponly(=|;|$)/i.test(cookie);
+
+    // extract cookie name for clarity
+    const match = cookie.match(/^([^=;]*)/);
+    const name = match ? match[1].trim() : '[unnamed cookie]';
+
     if (!hasSecure) {
       allSecure = false;
-      // extract cookie name for clarity
-      const match = cookie.match(/^([^=;]*)/);
-      const name = match ? match[1].trim() : '[unnamed cookie]';
       issues.push(`Cookie "${name}" does not have the Secure flag`);
+    }
+
+    if (!hasHttpOnly) {
+      allHttpOnly = false;
+      issues.push(`Cookie "${name}" does not have the HttpOnly flag`);
     }
   }
 
-  if (allSecure) {
+  // Determine overall status based on both Secure and HttpOnly flags
+  if (allSecure && allHttpOnly) {
     return {
       status: 'success',
-      message: 'All cookies are marked as Secure',
+      message: 'All cookies are marked as Secure and HttpOnly',
     };
   }
 
