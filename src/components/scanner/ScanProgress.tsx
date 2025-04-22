@@ -12,7 +12,7 @@ interface ScanProgressProps {
 }
 
 function filterLogsForMethod(logs: LogEntry[], method: string) {
-  // For GET, grab anything before "=== TESTING TRACE METHOD ===" (or TRACE/DEBUG markers)
+  // For GET, grab anything before "=== TESTING TRACE METHOD ===" or "=== TESTING DEBUG METHOD ===" markers
   if (method === "GET") {
     const endIdx = logs.findIndex(
       (log) =>
@@ -21,21 +21,30 @@ function filterLogsForMethod(logs: LogEntry[], method: string) {
     );
     return endIdx === -1 ? logs : logs.slice(0, endIdx);
   }
-  // For TRACE or DEBUG, find method section by marker
+
+  // For TRACE or DEBUG, find the specific method section by marker
   const marker = `=== TESTING ${method} METHOD ===`;
   const startIdx = logs.findIndex((log) => log.message.includes(marker));
+  
   if (startIdx === -1) return [];
-  // End at next marker or end of logs
+  
+  // Find the end of this method section
+  // For TRACE, end at DEBUG marker or end of logs
+  // For DEBUG, continue to the end of logs
+  const nextMethodMarker = method === "TRACE" 
+    ? "=== TESTING DEBUG METHOD ===" 
+    : null; // DEBUG continues to end
+  
   let endIdx = logs.length;
-  for (let i = startIdx + 1; i < logs.length; ++i) {
-    if (
-      (method === "TRACE" && logs[i].message.includes("=== TESTING DEBUG METHOD ===")) ||
-      (method === "DEBUG" && logs[i].message.includes("=== TESTING TRACE METHOD ==="))
-    ) {
-      endIdx = i;
-      break;
+  if (nextMethodMarker) {
+    const nextMarkerIdx = logs.findIndex((log, idx) => 
+      idx > startIdx && log.message.includes(nextMethodMarker)
+    );
+    if (nextMarkerIdx !== -1) {
+      endIdx = nextMarkerIdx;
     }
   }
+  
   return logs.slice(startIdx, endIdx);
 }
 
