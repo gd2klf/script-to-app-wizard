@@ -20,40 +20,39 @@ function filterLogsForMethod(logs: LogEntry[], method: string) {
     return endIdx === -1 ? logs : logs.slice(0, endIdx);
   }
 
-  // Find the specific method section's starting point
-  const marker = `=== TESTING ${method} METHOD ===`;
-  const startIdx = logs.findIndex((log) => log.message.includes(marker));
+  // Find the section markers that denote the beginning of each method section
+  const methodMarkers = logs
+    .map((log, idx) => ({ 
+      idx, 
+      method: log.message.includes("=== TESTING ") 
+        ? log.message.match(/=== TESTING (\w+) METHOD ===/)?.[1] 
+        : null 
+    }))
+    .filter(marker => marker.method !== null);
   
-  if (startIdx === -1) return [];
+  // Find the start index for this method's section
+  const startMarker = methodMarkers.find(marker => marker.method === method);
+  if (!startMarker) return [];
   
-  // Find logs that belong to this method
-  // This includes errors related to this method, which we can identify by looking for references to the method name
-  let methodLogs = [];
-  let inMethodSection = false;
+  // Find the end index (start of next method or end of logs)
+  const nextMethodMarker = methodMarkers.find(marker => 
+    marker.idx > startMarker.idx && marker.method !== method
+  );
+  const endIdx = nextMethodMarker ? nextMethodMarker.idx : logs.length;
   
-  for (let i = 0; i < logs.length; i++) {
-    const log = logs[i];
-    
-    // Start collecting logs when we find the marker
-    if (log.message.includes(marker)) {
-      inMethodSection = true;
-      methodLogs.push(log);
-      continue;
-    }
-    
-    // Stop when we hit the next method marker
-    if (inMethodSection && log.message.includes("=== TESTING ") && !log.message.includes(marker)) {
-      break;
-    }
-    
-    // Include logs that are in the method section or explicitly mention this method
-    if (inMethodSection || 
-        (log.type === 'error' && log.message.toLowerCase().includes(`method ${method.toLowerCase()}`))) {
-      methodLogs.push(log);
-    }
-  }
+  // Get all logs from this method's section
+  const methodSectionLogs = logs.slice(startMarker.idx, endIdx);
   
-  return methodLogs;
+  // Find any error logs that explicitly mention this method but aren't in the section
+  const methodErrors = logs.filter(log => 
+    log.type === 'error' && 
+    !methodSectionLogs.includes(log) &&
+    (log.message.toLowerCase().includes(`method ${method.toLowerCase()}`) ||
+     log.message.toLowerCase().includes(`method: ${method.toLowerCase()}`))
+  );
+  
+  // Combine the section logs with any errors related to this method
+  return [...methodSectionLogs, ...methodErrors];
 }
 
 export const ScanProgress = ({ logs }: ScanProgressProps) => {
