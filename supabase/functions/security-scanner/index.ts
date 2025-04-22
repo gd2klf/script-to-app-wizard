@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 5000; // 5 second timeout
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -29,7 +29,7 @@ serve(async (req) => {
       processedUrl = `https://${processedUrl}`;
     }
     
-    // Set a reasonable timeout to avoid hanging requests
+    // Set a 5-second timeout to avoid hanging requests
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     
