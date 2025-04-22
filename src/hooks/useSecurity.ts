@@ -49,7 +49,7 @@ export const useSecurity = () => {
     });
   };
 
-  // new: handles a 5s timeout, with a single retry if timeout occurs
+  // fixed: corrected TypeScript errors with Supabase function invocation
   const makeRequestWithRetry = async (
     url: string,
     method?: string,
@@ -62,25 +62,25 @@ export const useSecurity = () => {
       addLog('request', `Making ${method || 'GET'} request to ${url}...`);
 
       // Set up timeout promise
-      const controller = new AbortController();
       const timeoutPromise = new Promise((_, reject) => {
         timeoutId = setTimeout(() => {
           hasTimedOut = true;
-          controller.abort();
           reject(new Error('Request timed out after 5 seconds'));
         }, TIMEOUT_MS);
       });
 
       // main fetch wrapped in race against timeout
-      const { data, error } = await Promise.race([
+      const result = await Promise.race([
         supabase.functions.invoke('security-scanner', {
-          body: { url, method },
-          signal: (controller as any).signal
+          body: { url, method }
         }),
         timeoutPromise,
       ]);
 
       if (timeoutId) clearTimeout(timeoutId);
+
+      // Accessing data and error from the result of supabase.functions.invoke
+      const { data, error } = result as { data: any; error: any };
 
       if (error) {
         addLog('error', `Error with ${method || 'GET'} request: ${error.message}`);
