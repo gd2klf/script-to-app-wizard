@@ -52,25 +52,22 @@ export const useSecurity = () => {
         headersPlain[key] = value?.toString() || '';
       });
 
-      // Only check TRACE and DEBUG
+      // Only check TRACE and DEBUG - now sequentially instead of in parallel
       const methodsToCheck = ['TRACE', 'DEBUG'];
       addLog('request', '\n=== TESTING HTTP METHODS ===');
 
       const methodResults: Record<string, boolean> = {};
-      const methodChecks = await Promise.all(
-        methodsToCheck.map(async (method) => {
-          const result = await checkMethod(processedUrl, method);
-          methodResults[method] = result.allowed;
-          return { method, ...result };
-        })
-      );
-
-      methodChecks.forEach(check => {
-        if (check.error) {
+      
+      // Process each method one at a time to ensure logs are properly associated
+      for (const method of methodsToCheck) {
+        const result = await checkMethod(processedUrl, method);
+        methodResults[method] = result.allowed;
+        
+        if (result.error) {
           // eslint-disable-next-line no-console
-          console.warn(`Warning for ${check.method} method: ${check.error}`);
+          console.warn(`Warning for ${method} method: ${result.error}`);
         }
-      });
+      }
 
       const response: SecurityResult = {
         headers: headersPlain,

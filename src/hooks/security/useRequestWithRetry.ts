@@ -15,13 +15,14 @@ export const makeRequestWithRetry = async (
 ): Promise<any> => {
   let hasTimedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const methodName = method ? method.toUpperCase() : 'GET';
 
   try {
-    addLog('request', `Making ${method || 'GET'} request to ${url}...`);
+    addLog('request', `Making ${methodName} request to ${url}...`);
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
         hasTimedOut = true;
-        reject(new Error('Request timed out after 5 seconds'));
+        reject(new Error(`${methodName} request timed out after 5 seconds`));
       }, TIMEOUT_MS);
     });
 
@@ -36,25 +37,25 @@ export const makeRequestWithRetry = async (
     const { data, error } = result as { data: any; error: any };
 
     if (error) {
-      addLog('error', `Error with ${method || 'GET'} request: ${error.message}`);
+      addLog('error', `Error with ${methodName} request: ${error.message}`);
       throw error;
     }
 
     if (data && data.error && data.isTimeout && retryCount < MAX_RETRIES) {
-      addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
+      addLog('request', `${methodName} request timed out after 5 seconds, retrying...`);
       return makeRequestWithRetry(url, method, retryCount + 1);
     }
 
     if (hasTimedOut && retryCount < MAX_RETRIES) {
-      addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
+      addLog('request', `${methodName} request timed out after 5 seconds, retrying...`);
       return makeRequestWithRetry(url, method, retryCount + 1);
     }
 
     if (data && data.error) {
-      throw new Error(data.message || 'Edge function error');
+      throw new Error(data.message || `${methodName} edge function error`);
     }
 
-    addLog('response', `${method || 'GET'} request completed with status: ${data.status}`);
+    addLog('response', `${methodName} request completed with status: ${data.status}`);
     return data;
   } catch (error: any) {
     if (timeoutId) clearTimeout(timeoutId);
@@ -62,13 +63,13 @@ export const makeRequestWithRetry = async (
       (error?.message?.includes('timeout') || error?.name === 'AbortError') &&
       retryCount < MAX_RETRIES
     ) {
-      addLog('request', `Request timed out after 5 seconds, retrying ${method || 'GET'} request...`);
+      addLog('request', `${methodName} request timed out after 5 seconds, retrying...`);
       return makeRequestWithRetry(url, method, retryCount + 1);
     } else if (retryCount >= MAX_RETRIES) {
-      addLog('error', `${method || 'GET'} request failed after retry: Timeout`);
-      throw new Error(`Request timed out after multiple attempts`);
+      addLog('error', `${methodName} request failed after retry: Timeout`);
+      throw new Error(`${methodName} request timed out after multiple attempts`);
     }
-    addLog('error', `Error with ${method || 'GET'} request: ${error.message}`);
+    addLog('error', `Error with ${methodName} request: ${error.message}`);
     throw error;
   }
 };

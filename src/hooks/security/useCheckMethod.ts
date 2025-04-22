@@ -17,7 +17,7 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
 
     const data = await makeRequestWithRetry(url, method);
 
-    addLog('response', `=== RESPONSE (${method}) ===`);
+    addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
     addLog('response', `Status: ${data.status} ${data.statusText}`);
     addLog('response', 'Headers:');
     logHeaders(data.headers, '  ');
@@ -41,8 +41,8 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
     );
     return { allowed: isAllowed };
   } catch (error: any) {
+    // Add method to the error message to make it clear which method had an error
     addLog('error', `Error checking ${method} method: ${error.message}`);
     return { allowed: false, error: error.message };
   }
 };
-
