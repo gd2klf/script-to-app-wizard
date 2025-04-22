@@ -1,5 +1,9 @@
 
 export function analyzeSetCookieHeader(value: string) {
+  if (!value || value.trim() === '') {
+    return { status: 'success', message: 'No Set-Cookie header present, which is acceptable' };
+  }
+
   const cookies = value.split(/,(?=[^;]*=)/g);
   const issues: string[] = [];
   let allSecure = true;
