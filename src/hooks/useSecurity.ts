@@ -52,7 +52,8 @@ export const useSecurity = () => {
         headersPlain[key] = value?.toString() || '';
       });
 
-      const methodsToCheck = ['TRACE', 'OPTIONS', 'HEAD', 'DEBUG'];
+      // Only check TRACE and DEBUG
+      const methodsToCheck = ['TRACE', 'DEBUG'];
       addLog('request', '\n=== TESTING HTTP METHODS ===');
 
       const methodResults: Record<string, boolean> = {};
