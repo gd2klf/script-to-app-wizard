@@ -47,8 +47,9 @@ export const ScanProgress = ({ logs }: ScanProgressProps) => {
   const debugLogs = filterLogsForMethod(logs, "DEBUG");
 
   // Show panels only if logs exist for that method
+  // Changed from md:grid-cols-3 to grid-cols-1 for three stacked rows
   return (
-    <div className="grid md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {getLogs.length > 0 && (
         <ScanProgressPanel logs={getLogs} method="GET" />
       )}
