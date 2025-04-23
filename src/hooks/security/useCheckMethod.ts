@@ -74,6 +74,10 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
       // Enhanced error logging
       addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
       
+      // Check if the error contains a status code from the edge function
+      const statusMatch = error.message.match(/status: (\d+)/i);
+      const extractedStatus = statusMatch ? statusMatch[1] : 'Unknown';
+      
       if (error.message?.includes('Method is forbidden') || 
           error.message?.includes('method not allowed') || 
           error.message?.toLowerCase().includes('forbidden')) {
@@ -84,6 +88,7 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
       } else {
         // Other errors with more detailed logging
         addLog('response', `Error during ${method} request: ${error.message}`);
+        addLog('response', `Extracted status code: ${extractedStatus}`);
         addLog('error', `${method} scan failed: ${error.message}`);
         return { allowed: false, error: error.message };
       }
