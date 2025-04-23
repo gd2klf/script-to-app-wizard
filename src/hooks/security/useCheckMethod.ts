@@ -19,8 +19,23 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
 
     addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
     addLog('response', `Status: ${data.status} ${data.statusText}`);
-    addLog('response', 'Headers:');
-    logHeaders(data.headers, '  ');
+    
+    // Add more detailed response information for TRACE method
+    if (method === 'TRACE') {
+      if (data.status === 405 || data.status === 501) {
+        addLog('response', `TRACE method properly rejected with ${data.status} status code`);
+      } else if (data.error) {
+        addLog('response', `TRACE request error: ${data.error}`);
+      }
+      
+      // Log all response headers for TRACE
+      addLog('response', 'Response Headers:');
+      logHeaders(data.headers, '  ');
+    } else {
+      // For non-TRACE methods, log headers as before
+      addLog('response', 'Headers:');
+      logHeaders(data.headers, '  ');
+    }
 
     let isAllowed = false;
     if (method === 'DEBUG') {
@@ -46,3 +61,4 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
     return { allowed: false, error: error.message };
   }
 };
+
