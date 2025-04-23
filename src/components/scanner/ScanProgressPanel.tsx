@@ -42,10 +42,28 @@ export const ScanProgressPanel = ({ logs, method }: ScanProgressPanelProps) => {
     return message;
   };
 
+  // Check if we have a special message for rejected methods
+  const hasRejectionMessage = logs.some(log => 
+    log.message.includes(`${method} method rejected by server`) || 
+    log.message.includes('method not allowed') ||
+    log.message.includes('Method is forbidden')
+  );
+
+  // Determine if method is secure or not
+  const methodStatus = logs.find(log => log.message.includes(`${method} method:`))?.message || '';
+  const isSecure = methodStatus.includes('NOT ALLOWED (secure)');
+
   return (
     <Card className="mt-4">
       <CardHeader>
-        <CardTitle>{method} Scan Progress</CardTitle>
+        <CardTitle>
+          {method} Scan Progress
+          {hasRejectionMessage && (
+            <span className={`ml-2 text-sm ${isSecure ? 'text-green-600' : 'text-red-500'}`}>
+              ({isSecure ? 'Blocked' : 'Vulnerable'})
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px] w-full rounded-md border bg-slate-50 p-4 font-mono">
