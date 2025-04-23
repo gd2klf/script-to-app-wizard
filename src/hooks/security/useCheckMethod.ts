@@ -20,7 +20,7 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
     addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
     addLog('response', `Status: ${data.status} ${data.statusText}`);
     
-    // Add more detailed response information for TRACE method
+    // Add more detailed response information for TRACE and DEBUG methods
     if (method === 'TRACE') {
       if (data.status === 405 || data.status === 501) {
         addLog('response', `TRACE method properly rejected with ${data.status} status code`);
@@ -31,8 +31,20 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
       // Log all response headers for TRACE
       addLog('response', 'Response Headers:');
       logHeaders(data.headers, '  ');
+    } else if (method === 'DEBUG') {
+      if (data.status === 200) {
+        addLog('response', `DEBUG method responded with ${data.status} status code - This indicates the method is enabled`);
+      } else if (data.status === 405 || data.status === 501) {
+        addLog('response', `DEBUG method properly rejected with ${data.status} status code`);
+      } else if (data.error) {
+        addLog('response', `DEBUG request error: ${data.error}`);
+      }
+      
+      // Log all response headers for DEBUG
+      addLog('response', 'Response Headers:');
+      logHeaders(data.headers, '  ');
     } else {
-      // For non-TRACE methods, log headers as before
+      // For non-TRACE/DEBUG methods, log headers as before
       addLog('response', 'Headers:');
       logHeaders(data.headers, '  ');
     }
@@ -61,4 +73,3 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
     return { allowed: false, error: error.message };
   }
 };
-
