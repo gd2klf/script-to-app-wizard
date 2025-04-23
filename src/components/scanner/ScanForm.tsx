@@ -36,7 +36,7 @@ export const ScanForm = ({
           <p>Security scanner functionality:</p>
           <ul className="list-disc pl-5 mt-2 space-y-1">
             <li>Tests for security headers like Content-Security-Policy, X-XSS-Protection, etc.</li>
-            <li>Checks if potentially unsafe HTTP methods (TRACE, OPTIONS, HEAD, DEBUG) are enabled</li>
+            <li>Checks if potentially unsafe HTTP methods TRACE and DEBUG are enabled</li>
             <li>All requests are made securely through a backend Edge Function</li>
           </ul>
         </AlertDescription>
