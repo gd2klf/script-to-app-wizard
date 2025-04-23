@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,7 +16,6 @@ const importantHeaders = [
   "set-cookie",
   "strict-transport-security",
   "x-frame-options",
-  "x-xss-protection",
   "x-content-type-options",
   "referrer-policy"
 ];
@@ -48,10 +46,6 @@ const getHeaderStatus = (header: string, value: string | undefined, allHeaders?:
     }
     case 'x-frame-options':
       return analyzeXFrameOptions(value || '');
-    case 'x-xss-protection':
-      return value
-        ? { status: 'success', message: 'XSS protection is enabled' }
-        : { status: 'warning', message: 'X-XSS-Protection header is missing' };
     case 'x-content-type-options':
       return value && value.toLowerCase() === 'nosniff'
         ? { status: 'success', message: 'MIME-type sniffing prevention is enabled' }
