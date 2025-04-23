@@ -20,12 +20,14 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
       addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
       addLog('response', `Status: ${data.status} ${data.statusText}`);
       
-      // Add more detailed response information for TRACE and DEBUG methods
       if (method === 'TRACE') {
+        // Specific logging for TRACE method
+        addLog('response', `TRACE method status code: ${data.status}`);
+        
         if (data.status === 405 || data.status === 501) {
           addLog('response', `TRACE method properly rejected with ${data.status} status code`);
-        } else if (data.error) {
-          addLog('response', `TRACE request error: ${data.error}`);
+        } else {
+          addLog('response', `TRACE method returned unexpected status code: ${data.status}`);
         }
         
         // Log all response headers for TRACE
@@ -69,7 +71,7 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
       return { allowed: isAllowed };
       
     } catch (error: any) {
-      // This is for errors returned by the edge function itself
+      // Enhanced error logging
       addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
       
       if (error.message?.includes('Method is forbidden') || 
@@ -80,7 +82,7 @@ export const checkMethod = async (url: string, method: string): Promise<{ allowe
         addLog('response', `${method} method: NOT ALLOWED (secure)`);
         return { allowed: false };
       } else {
-        // Other errors
+        // Other errors with more detailed logging
         addLog('response', `Error during ${method} request: ${error.message}`);
         addLog('error', `${method} scan failed: ${error.message}`);
         return { allowed: false, error: error.message };
