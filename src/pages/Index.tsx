@@ -8,7 +8,7 @@ const Index = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2 text-slate-800">HTTP Security Scanner</h1>
           <p className="text-lg text-slate-600">
-            Test security headers and HTTP methods for any website
+            Test security headers for any website
           </p>
         </div>
         <HeaderScanner />
