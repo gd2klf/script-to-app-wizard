@@ -21,7 +21,7 @@ const HeaderScanner = () => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">HTTP Security Scanner</h2>
-      <p className="mb-4">Enter a URL to scan for security headers and HTTP methods</p>
+      <p className="mb-4">Enter a URL to scan for security headers</p>
       
       <ScanForm
         url={url}
