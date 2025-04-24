@@ -1,7 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeadersTable } from "./security/HeadersTable";
-import { MethodsTable } from "./security/MethodsTable";
 
 type SecurityResult = {
   headers: Record<string, string>;
@@ -17,15 +16,6 @@ const SecurityAssessment = ({ results }: { results: SecurityResult }) => {
         </CardHeader>
         <CardContent>
           <HeadersTable headers={results.headers} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>HTTP Methods Assessment</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MethodsTable methods={results.methods} />
         </CardContent>
       </Card>
     </div>
