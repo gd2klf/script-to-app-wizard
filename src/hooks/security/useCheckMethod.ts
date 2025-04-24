@@ -3,7 +3,8 @@ import { addLog, logHeaders } from "./useLog";
 import { makeRequestWithRetry } from "./useRequestWithRetry";
 
 /**
- * Checks if an HTTP method is allowed on a given URL.
+ * This function is now deprecated and only kept for reference.
+ * The method checking is now done in the main useSecurity hook to avoid duplicate requests.
  */
 export const checkMethod = async (url: string, method: string, withAuth?: boolean): Promise<{ allowed: boolean; error?: string }> => {
   try {

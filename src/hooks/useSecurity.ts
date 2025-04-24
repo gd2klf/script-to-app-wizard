@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { addLog, resetLogs, setLogSetter, logHeaders, LogEntry } from "./security/useLog";
 import { makeRequestWithRetry } from "./security/useRequestWithRetry";
-import { checkMethod } from "./security/useCheckMethod";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type SecurityResult = {
@@ -59,33 +58,31 @@ export const useSecurity = () => {
         addLog('request', '  User authenticated: No');
       }
 
-      const headersResponse = await makeRequestWithRetry(processedUrl, 'GET', requireAuth);
+      // Make just one request for both headers and method check
+      const response = await makeRequestWithRetry(processedUrl, 'GET', requireAuth);
 
       addLog('response', '=== RESPONSE ===');
-      addLog('response', `Status: ${headersResponse.status} ${headersResponse.statusText}`);
+      addLog('response', `Status: ${response.status} ${response.statusText}`);
       addLog('response', 'Headers:');
-      logHeaders(headersResponse.headers, '  ');
+      logHeaders(response.headers, '  ');
 
       const headersPlain: Record<string, string> = {};
-      Object.entries(headersResponse.headers).forEach(([key, value]) => {
+      Object.entries(response.headers).forEach(([key, value]) => {
         headersPlain[key] = value?.toString() || '';
       });
 
-      // Only check GET method
-      const methodResults: Record<string, boolean> = {};
-      const result = await checkMethod(processedUrl, 'GET', requireAuth);
-      methodResults['GET'] = result.allowed;
-      
-      if (result.error) {
-        console.warn(`Warning for GET method: ${result.error}`);
-      }
+      // Use the same response to determine if GET method is allowed
+      // GET method is always allowed if we got a response
+      const methodResults: Record<string, boolean> = {
+        'GET': true
+      };
 
-      const response: SecurityResult = {
+      const securityResult: SecurityResult = {
         headers: headersPlain,
         methods: methodResults
       };
 
-      setResults(response);
+      setResults(securityResult);
       addLog('response', '\n=== SCAN COMPLETED ===');
       toast({
         title: "Scan Complete",
