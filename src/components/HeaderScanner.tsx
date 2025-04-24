@@ -10,10 +10,10 @@ const HeaderScanner = () => {
   const [url, setUrl] = useState('');
   const { loading, results, errorDetails, scanUrl, logs } = useSecurity();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, requireAuth: boolean) => {
     e.preventDefault();
     if (!url) return;
-    await scanUrl(url);
+    await scanUrl(url, requireAuth);
   };
 
   return (

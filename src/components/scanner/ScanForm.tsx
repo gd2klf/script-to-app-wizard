@@ -2,11 +2,12 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ScanFormProps {
   url: string;
   setUrl: (url: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, requireAuth: boolean) => void;
   loading: boolean;
 }
 
@@ -16,8 +17,19 @@ export const ScanForm = ({
   onSubmit,
   loading
 }: ScanFormProps) => {
+  const { user, login } = useAuth();
+
+  const handleSubmit = (e: React.FormEvent, requireAuth: boolean) => {
+    e.preventDefault();
+    if (requireAuth && !user) {
+      login();
+      return;
+    }
+    onSubmit(e, requireAuth);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form className="space-y-4">
       <div className="flex flex-col md:flex-row gap-2">
         <Input
           type="text"
@@ -26,9 +38,23 @@ export const ScanForm = ({
           onChange={(e) => setUrl(e.target.value)}
           className="flex-1"
         />
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Scanning...' : 'Scan Website'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            type="button" 
+            onClick={(e) => handleSubmit(e, false)}
+            disabled={loading}
+          >
+            {loading ? 'Scanning...' : 'Public Scan'}
+          </Button>
+          <Button 
+            type="button"
+            onClick={(e) => handleSubmit(e, true)}
+            disabled={loading}
+            variant="secondary"
+          >
+            {loading ? 'Scanning...' : 'Authenticated Scan'}
+          </Button>
+        </div>
       </div>
       
       <Alert className="mt-4 bg-amber-50 border-amber-200">
