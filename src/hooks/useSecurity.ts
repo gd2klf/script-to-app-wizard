@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { addLog, resetLogs, setLogSetter, logHeaders, LogEntry } from "./security/useLog";
 import { makeRequestWithRetry } from "./security/useRequestWithRetry";
 import { checkMethod } from "./security/useCheckMethod";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type SecurityResult = {
   headers: Record<string, string>;
@@ -16,6 +17,7 @@ export const useSecurity = () => {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   setLogSetter(setLogs);
 
@@ -39,6 +41,13 @@ export const useSecurity = () => {
       addLog('request', 'Method: GET');
       addLog('request', 'Headers:');
       addLog('request', '  User-Agent: Security-Scanner/1.0');
+      
+      if (user) {
+        addLog('request', '  Authorization: Bearer [token]');
+        addLog('request', '  User authenticated: Yes');
+      } else {
+        addLog('request', '  User authenticated: No');
+      }
 
       const headersResponse = await makeRequestWithRetry(processedUrl);
 

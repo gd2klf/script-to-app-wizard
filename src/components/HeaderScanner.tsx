@@ -15,7 +15,7 @@ const HeaderScanner = () => {
       e.preventDefault();
     }
     if (!url) return;
-    await scanUrl(url, requireAuth);
+    await scanUrl(url);
   };
 
   return (
@@ -48,4 +48,3 @@ const HeaderScanner = () => {
 };
 
 export { HeaderScanner };
-

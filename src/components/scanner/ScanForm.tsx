@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 interface ScanFormProps {
   url: string;
   setUrl: (url: string) => void;
-  onSubmit: (e: React.FormEvent, requireAuth: boolean) => void;
+  onSubmit: (e: React.FormEvent | React.MouseEvent, requireAuth: boolean) => void;
   loading: boolean;
 }
 
@@ -19,8 +19,7 @@ export const ScanForm = ({
 }: ScanFormProps) => {
   const { user, login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent, requireAuth: boolean) => {
-    e.preventDefault();
+  const handleSubmit = (e: React.FormEvent | React.MouseEvent, requireAuth: boolean) => {
     if (requireAuth && !user) {
       login();
       return;
