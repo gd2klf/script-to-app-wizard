@@ -5,10 +5,14 @@ class OktaAuthService {
   private userManager: UserManager;
 
   constructor() {
+    const domain = import.meta.env.VITE_OKTA_DOMAIN || 'https://your-okta-domain/oauth2/default';
+    const clientId = import.meta.env.VITE_OKTA_CLIENT_ID || 'your-client-id';
+    
     this.userManager = new UserManager({
-      authority: 'https://your-okta-domain/oauth2/default',
-      client_id: 'your-client-id',
+      authority: domain,
+      client_id: clientId,
       redirect_uri: `${window.location.origin}/callback`,
+      post_logout_redirect_uri: `${window.location.origin}`,
       response_type: 'code',
       scope: 'openid profile email',
     });
