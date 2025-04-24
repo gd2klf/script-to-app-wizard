@@ -52,21 +52,13 @@ export const useSecurity = () => {
         headersPlain[key] = value?.toString() || '';
       });
 
-      // Only check TRACE and DEBUG - now sequentially instead of in parallel
-      const methodsToCheck = ['TRACE', 'DEBUG'];
-      addLog('request', '\n=== TESTING HTTP METHODS ===');
-
+      // Only check GET method
       const methodResults: Record<string, boolean> = {};
+      const result = await checkMethod(processedUrl, 'GET');
+      methodResults['GET'] = result.allowed;
       
-      // Process each method one at a time to ensure logs are properly associated
-      for (const method of methodsToCheck) {
-        const result = await checkMethod(processedUrl, method);
-        methodResults[method] = result.allowed;
-        
-        if (result.error) {
-          // eslint-disable-next-line no-console
-          console.warn(`Warning for ${method} method: ${result.error}`);
-        }
+      if (result.error) {
+        console.warn(`Warning for GET method: ${result.error}`);
       }
 
       const response: SecurityResult = {
@@ -81,7 +73,6 @@ export const useSecurity = () => {
         description: "Security scan has been completed successfully",
       });
     } catch (error: any) {
-      // eslint-disable-next-line no-console
       console.error("Scan error:", error);
       let errorMessage = "An error occurred while scanning the URL.";
       let errorDetail = error?.message ? error.message : "";

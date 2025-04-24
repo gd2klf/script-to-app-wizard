@@ -8,7 +8,7 @@ interface MethodsTableProps {
 
 export const MethodsTable = ({ methods }: MethodsTableProps) => {
   const filteredMethods = Object.entries(methods).filter(([method]) =>
-    method === 'TRACE' || method === 'DEBUG'
+    method === 'GET'
   );
 
   return (
@@ -26,32 +26,15 @@ export const MethodsTable = ({ methods }: MethodsTableProps) => {
           <TableRow key={method}>
             <TableCell className="font-medium">{method}</TableCell>
             <TableCell>
-              <Badge
-                variant={enabled ? 'destructive' : 'default'}
-                className={method === 'DEBUG' && enabled ? 'bg-[#ea384c]' : ''}
-              >
-                {enabled ? 'Enabled' : 'Disabled'}
+              <Badge variant={enabled ? 'default' : 'destructive'}>
+                {enabled ? 'Working' : 'Error'}
               </Badge>
             </TableCell>
             <TableCell>
               {enabled ? '200 OK' : '405 Method Not Allowed'}
             </TableCell>
             <TableCell>
-              {method === 'TRACE' && enabled && (
-                <span className="text-red-600">TRACE method should be disabled for security</span>
-              )}
-              {method === 'TRACE' && !enabled && (
-                <span className="text-green-600">TRACE method is properly disabled</span>
-              )}
-              {method === 'DEBUG' && enabled && (
-                <span className="text-red-600">DEBUG method is enabled - potential security risk</span>
-              )}
-              {method === 'DEBUG' && !enabled && (
-                <span className="text-green-600">DEBUG method is properly disabled</span>
-              )}
-              {method !== 'TRACE' && method !== 'DEBUG' && (
-                <span className="text-gray-600">Standard HTTP method</span>
-              )}
+              <span className="text-gray-600">Standard HTTP method</span>
             </TableCell>
           </TableRow>
         ))}
