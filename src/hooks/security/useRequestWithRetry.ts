@@ -11,6 +11,7 @@ const TIMEOUT_MS = 5000;
 export const makeRequestWithRetry = async (
   url: string,
   method?: string,
+  withAuth?: boolean,
   retryCount = 0
 ): Promise<any> => {
   let hasTimedOut = false;
@@ -18,7 +19,7 @@ export const makeRequestWithRetry = async (
   const methodName = method ? method.toUpperCase() : 'GET';
 
   try {
-    addLog('request', `Making ${methodName} request to ${url}...`);
+    addLog('request', `Making ${methodName} request to ${url}${withAuth ? ' with authentication' : ''}...`);
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
         hasTimedOut = true;
@@ -28,7 +29,7 @@ export const makeRequestWithRetry = async (
 
     const result = await Promise.race([
       supabase.functions.invoke('security-scanner', {
-        body: { url, method }
+        body: { url, method, withAuth }
       }),
       timeoutPromise,
     ]);
@@ -43,12 +44,12 @@ export const makeRequestWithRetry = async (
 
     if (data && data.error && data.isTimeout && retryCount < MAX_RETRIES) {
       addLog('request', `${methodName} request timed out after 5 seconds, retrying...`);
-      return makeRequestWithRetry(url, method, retryCount + 1);
+      return makeRequestWithRetry(url, method, withAuth, retryCount + 1);
     }
 
     if (hasTimedOut && retryCount < MAX_RETRIES) {
       addLog('request', `${methodName} request timed out after 5 seconds, retrying...`);
-      return makeRequestWithRetry(url, method, retryCount + 1);
+      return makeRequestWithRetry(url, method, withAuth, retryCount + 1);
     }
 
     if (data && data.error) {
@@ -64,7 +65,7 @@ export const makeRequestWithRetry = async (
       retryCount < MAX_RETRIES
     ) {
       addLog('request', `${methodName} request timed out after 5 seconds, retrying...`);
-      return makeRequestWithRetry(url, method, retryCount + 1);
+      return makeRequestWithRetry(url, method, withAuth, retryCount + 1);
     } else if (retryCount >= MAX_RETRIES) {
       addLog('error', `${methodName} request failed after retry: Timeout`);
       throw new Error(`${methodName} request timed out after multiple attempts`);

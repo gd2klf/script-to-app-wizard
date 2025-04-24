@@ -17,10 +17,10 @@ serve(async (req) => {
   }
   
   try {
-    const { url, method } = await req.json();
+    const { url, method, withAuth } = await req.json();
     const actualMethod = (method || 'GET').toUpperCase();
 
-    console.log(`Scanning URL: ${url} with method: ${actualMethod}`);
+    console.log(`Scanning URL: ${url} with method: ${actualMethod}${withAuth ? ' with auth' : ''}`);
 
     if (!url) {
       throw new Error('URL is required');
@@ -51,12 +51,23 @@ serve(async (req) => {
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     
     try {
+      // Prepare headers for the request
+      const headers = {
+        'User-Agent': 'Security-Scanner/1.0'
+      };
+      
+      // Add Authorization header if withAuth is true and auth token is present in the request
+      if (withAuth) {
+        const authHeader = req.headers.get('authorization');
+        if (authHeader) {
+          headers['Authorization'] = authHeader;
+        }
+      }
+      
       // Make the request to the target URL
       const response = await fetch(processedUrl, { 
         method: actualMethod,
-        headers: {
-          'User-Agent': 'Security-Scanner/1.0'
-        },
+        headers,
         redirect: 'manual',
         signal: controller.signal
       });
@@ -65,9 +76,9 @@ serve(async (req) => {
       clearTimeout(timeoutId);
       
       // Extract headers
-      const headers = {};
+      const responseHeaders = {};
       response.headers.forEach((value, key) => {
-        headers[key] = value;
+        responseHeaders[key] = value;
       });
       
       // Return the response details
@@ -75,7 +86,7 @@ serve(async (req) => {
         JSON.stringify({
           status: response.status,
           statusText: response.statusText,
-          headers: headers,
+          headers: responseHeaders,
           url: response.url,
           redirected: response.redirected,
           ok: response.ok,

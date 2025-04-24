@@ -15,7 +15,7 @@ const HeaderScanner = () => {
       e.preventDefault();
     }
     if (!url) return;
-    await scanUrl(url);
+    await scanUrl(url, requireAuth);
   };
 
   return (

@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
+import { Lock } from "lucide-react";
 
 interface ScanFormProps {
   url: string;
@@ -17,6 +18,8 @@ export const ScanForm = ({
   onSubmit,
   loading
 }: ScanFormProps) => {
+  const { user } = useAuth();
+  
   return (
     <form className="space-y-4">
       <div className="flex flex-col md:flex-row gap-2">
@@ -27,13 +30,26 @@ export const ScanForm = ({
           onChange={(e) => setUrl(e.target.value)}
           className="flex-1"
         />
-        <Button 
-          type="button" 
-          onClick={(e) => onSubmit(e, false)}
-          disabled={loading}
-        >
-          {loading ? 'Scanning...' : 'Scan'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            type="button" 
+            onClick={(e) => onSubmit(e, false)}
+            disabled={loading}
+          >
+            {loading ? 'Scanning...' : 'Scan'}
+          </Button>
+          
+          <Button 
+            type="button" 
+            variant="secondary"
+            onClick={(e) => onSubmit(e, true)}
+            disabled={loading || !user}
+            title={!user ? "Login required" : "Scan with authentication"}
+          >
+            <Lock className="mr-1" size={16} />
+            {loading ? 'Scanning...' : 'Auth Scan'}
+          </Button>
+        </div>
       </div>
       
       <Alert className="mt-4 bg-amber-50 border-amber-200">
@@ -42,6 +58,7 @@ export const ScanForm = ({
           <ul className="list-disc pl-5 mt-2 space-y-1">
             <li>Tests for security headers like Content-Security-Policy, X-XSS-Protection, etc.</li>
             <li>All requests are made securely through a backend Edge Function</li>
+            <li>Use "Auth Scan" to include your authentication token in the request (requires login)</li>
           </ul>
         </AlertDescription>
       </Alert>

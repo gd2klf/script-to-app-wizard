@@ -5,16 +5,20 @@ import { makeRequestWithRetry } from "./useRequestWithRetry";
 /**
  * Checks if an HTTP method is allowed on a given URL.
  */
-export const checkMethod = async (url: string, method: string): Promise<{ allowed: boolean; error?: string }> => {
+export const checkMethod = async (url: string, method: string, withAuth?: boolean): Promise<{ allowed: boolean; error?: string }> => {
   try {
     addLog('request', `\n=== TESTING ${method} METHOD ===`);
     addLog('request', `URL: ${url}`);
     addLog('request', `Method: ${method}`);
     addLog('request', 'Headers:');
     addLog('request', '  User-Agent: Security-Scanner/1.0');
+    
+    if (withAuth) {
+      addLog('request', '  Authorization: Bearer [token]');
+    }
 
     try {
-      const data = await makeRequestWithRetry(url, method);
+      const data = await makeRequestWithRetry(url, method, withAuth);
 
       addLog('response', `=== RESPONSE FOR ${method} METHOD ===`);
       addLog('response', `Status: ${data.status} ${data.statusText}`);

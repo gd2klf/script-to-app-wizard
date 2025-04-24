@@ -21,10 +21,20 @@ export const useSecurity = () => {
 
   setLogSetter(setLogs);
 
-  const scanUrl = async (url: string) => {
+  const scanUrl = async (url: string, requireAuth: boolean = false) => {
     let processedUrl = url;
     if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
       processedUrl = `https://${processedUrl}`;
+    }
+
+    // Prevent authenticated scan if user is not logged in
+    if (requireAuth && !user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to perform an authenticated scan",
+        variant: "destructive",
+      });
+      return;
     }
 
     setLoading(true);
@@ -42,14 +52,14 @@ export const useSecurity = () => {
       addLog('request', 'Headers:');
       addLog('request', '  User-Agent: Security-Scanner/1.0');
       
-      if (user) {
+      if (requireAuth && user) {
         addLog('request', '  Authorization: Bearer [token]');
         addLog('request', '  User authenticated: Yes');
       } else {
         addLog('request', '  User authenticated: No');
       }
 
-      const headersResponse = await makeRequestWithRetry(processedUrl);
+      const headersResponse = await makeRequestWithRetry(processedUrl, 'GET', requireAuth);
 
       addLog('response', '=== RESPONSE ===');
       addLog('response', `Status: ${headersResponse.status} ${headersResponse.statusText}`);
@@ -63,7 +73,7 @@ export const useSecurity = () => {
 
       // Only check GET method
       const methodResults: Record<string, boolean> = {};
-      const result = await checkMethod(processedUrl, 'GET');
+      const result = await checkMethod(processedUrl, 'GET', requireAuth);
       methodResults['GET'] = result.allowed;
       
       if (result.error) {
